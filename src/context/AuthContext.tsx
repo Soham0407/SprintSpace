@@ -6,7 +6,8 @@ import {
   type ReactNode,
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase, isSupabaseReady } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AuthContextValue {
   session: Session | null;
@@ -28,56 +29,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isSupabaseReady()) {
-      const loadMockSession = () => {
-        const stored = localStorage.getItem('mock_session');
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            setSession(parsed);
-            setUser(parsed.user);
-          } catch (e) {
-            setSession(null);
-            setUser(null);
-          }
-        } else {
-          setSession(null);
-          setUser(null);
-        }
-        setLoading(false);
-      };
+    // Load the initial session synchronously from storage
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      setLoading(false);
+    });
 
-      loadMockSession();
+    // Subscribe to auth state changes (login, logout, token refresh)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
 
-      const handleMockAuthChange = (e: Event) => {
-        const customEvent = e as CustomEvent;
-        const session = customEvent.detail;
-        setSession(session);
-        setUser(session?.user ?? null);
-      };
-
-      window.addEventListener('mock-auth-change', handleMockAuthChange);
-      return () => {
-        window.removeEventListener('mock-auth-change', handleMockAuthChange);
-      };
-    } else {
-      // Load the initial session synchronously from storage
-      supabase.auth.getSession().then(({ data }) => {
-        setSession(data.session);
-        setUser(data.session?.user ?? null);
-        setLoading(false);
-      });
-
-      // Subscribe to auth state changes (login, logout, token refresh)
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-      });
-
-      return () => subscription.unsubscribe();
-    }
+    return () => subscription.unsubscribe();
   }, []);
 
   return (
