@@ -38,9 +38,23 @@ export interface ArchiveProject {
   id: string;
   name: string;
   competition: string;
+  competitionId?: string;
+  workspaceId?: string;
   result: 'Winner' | 'Finalist' | 'Runner-up' | 'Shipped';
   stack: string[];
   href: string;
+  createdAt?: string;
+  deletedAt?: string | null;
+}
+
+export interface CreateArchiveInput {
+  name: string;
+  competition: string;
+  competitionId?: string;
+  workspaceId?: string;
+  result: ArchiveProject['result'];
+  stack: string[];
+  href?: string;
 }
 
 export interface KanbanTask {
