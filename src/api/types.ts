@@ -97,3 +97,23 @@ export interface CountryStat {
   countryName: string;
   activeUsers: number;
 }
+
+export interface Resource {
+  id: string;
+  title: string;
+  description: string | null;
+  url: string;
+  category: string;
+  tags: string[];
+  createdAt?: string;
+  createdBy?: string | null;
+}
+
+export interface CreateResourceInput {
+  title: string;
+  description?: string;
+  url: string;
+  category: string;
+  tags?: string[];
+}
+

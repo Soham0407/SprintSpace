@@ -39,7 +39,7 @@ export async function getCandidates(): Promise<Candidate[]> {
 
   return (data ?? []).map((c) => ({
     id: c.id as string,
-    name: (c.profiles as { name: string } | null)?.name ?? 'Unknown',
+    name: (c.profiles as unknown as { name: string } | null)?.name ?? 'Unknown',
     roleWanted: c.role_wanted as string,
     skills: c.skills as string[],
     matchScore: c.match_score as number,
