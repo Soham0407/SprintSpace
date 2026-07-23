@@ -25,7 +25,7 @@ const LoginPage = () => {
     setSubmitError(null);
     try {
       await signIn(values);
-      navigate('/workspace');
+      navigate('/dashboard');
     } catch (e) {
       setSubmitError((e as Error).message);
     }

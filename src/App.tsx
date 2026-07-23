@@ -10,6 +10,7 @@ const DiscoverPage = lazy(() => import('./pages/DiscoverPage'));
 const TeamMatchPage = lazy(() => import('./pages/TeamMatchPage'));
 const ResourceHubPage = lazy(() => import('./pages/ResourceHubPage'));
 const SprintRoomPage = lazy(() => import('./pages/SprintRoomPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 const SpotifyCallbackPage = lazy(() => import('./pages/SpotifyCallbackPage'));
 
@@ -22,6 +23,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/workspace" element={<WorkspacePage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/discover" element={<DiscoverPage />} />
