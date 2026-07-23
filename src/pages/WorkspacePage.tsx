@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, ListChecks, Users, MessageCircle, FolderOpen, Flag } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import CountUp from '../components/reactbits/CountUp';
@@ -8,6 +9,7 @@ import BlackHoleCountdown from '../components/deadline/BlackHoleCountdown';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { getWorkspace } from '../api/workspace';
 import AskAIWidget from '../components/workspace/AskAIWidget';
+
 const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value: number }) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-60px' });
@@ -88,7 +90,6 @@ const WorkspacePage = () => {
                   </SpotlightCard>
                 </div>
 
-                {/* The deadline gets real visual weight — not another small stat tile */}
                 <div className="bg-card border border-white/5 rounded-2xl flex flex-col items-center justify-center py-6">
                   <BlackHoleCountdown deadline={ws.deadline} size={150} />
                 </div>
@@ -198,26 +199,28 @@ const WorkspacePage = () => {
                 </motion.div>
 
                 <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
-                  <SpotlightCard
-                    className="h-full flex flex-col cursor-pointer"
-                    spotlightColor="rgba(255, 91, 46, 0.15)"
-                  >
-                    <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center text-primary mb-5">
-                      <FolderOpen size={20} />
-                    </div>
-                    <h3 className="text-primary text-lg md:text-xl mb-3">Resources</h3>
-                    <ul className="space-y-2">
-                      <li className="flex items-center gap-2 text-sm text-gray-400">
-                        <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> GitHub
-                      </li>
-                      <li className="flex items-center gap-2 text-sm text-gray-400">
-                        <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Files
-                      </li>
-                      <li className="flex items-center gap-2 text-sm text-gray-400">
-                        <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Rulebook
-                      </li>
-                    </ul>
-                  </SpotlightCard>
+                  <Link to="/resources" className="block h-full">
+                    <SpotlightCard
+                      className="h-full flex flex-col cursor-pointer"
+                      spotlightColor="rgba(255, 91, 46, 0.15)"
+                    >
+                      <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center text-primary mb-5">
+                        <FolderOpen size={20} />
+                      </div>
+                      <h3 className="text-primary text-lg md:text-xl mb-3">Resources</h3>
+                      <ul className="space-y-2">
+                        <li className="flex items-center gap-2 text-sm text-gray-400">
+                          <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> GitHub
+                        </li>
+                        <li className="flex items-center gap-2 text-sm text-gray-400">
+                          <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Files
+                        </li>
+                        <li className="flex items-center gap-2 text-sm text-gray-400">
+                          <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Rulebook
+                        </li>
+                      </ul>
+                    </SpotlightCard>
+                  </Link>
                 </motion.div>
               </div>
 
