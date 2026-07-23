@@ -6,12 +6,15 @@ import { useAsyncData } from '../hooks/useAsyncData';
 import { getCandidates } from '../api/candidates';
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 const TeamMatchPage = () => {
   const { data: candidates, loading } = useAsyncData(getCandidates, []);
   const navigate = useNavigate();
+  const location = useLocation();
+  const alreadyInvited = location.state?.invitedMembers??[];
 
-const [invited, setInvited] = useState<string[]>([]);
+const [invited, setInvited] = useState<string[]>(alreadyInvited.map((m:any)=>m.id));
 
 const MAX_MEMBERS = 4; 
 
@@ -141,6 +144,25 @@ const MAX_MEMBERS = 4;
 
 </>
 )}
+    <div className="flex justify-center mt-10">
+  <button
+    disabled={invited.length === 0}
+    onClick={() => {
+      const selected = (candidates??[]).filter(c =>
+        invited.includes(c.id)
+      );
+
+      navigate("/newcompetition", {
+        state: {
+          invitedMembers: selected,
+        },
+      });
+    }}
+    className="bg-primary text-ink rounded-full px-8 py-3 font-medium disabled:opacity-40"
+  >
+    Finish
+  </button>
+</div>
     </PageShell>
   );
 };

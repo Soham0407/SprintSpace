@@ -54,7 +54,7 @@ export default function NewCompetitionPage() {
         {/* Header */}
 
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/dashboard")}
           className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors mb-8"
         >
           <ArrowLeft size={16} />
@@ -228,7 +228,7 @@ export default function NewCompetitionPage() {
                 <div className="flex items-center gap-3">
 
                   <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center font-semibold">
-                    H
+                    A
                   </div>
 
                   <div>
@@ -272,7 +272,9 @@ export default function NewCompetitionPage() {
 ))}
 
             <button
-              onClick={() => navigate("/teammatch")}
+              onClick={() =>navigate("/teammatch", {state: {invitedMembers,},
+  })
+}
               className="w-full rounded-2xl border border-accent/30 py-4 flex items-center justify-center gap-3 text-accent hover:bg-accent/10 transition"
             >
               <Users size={18} />
