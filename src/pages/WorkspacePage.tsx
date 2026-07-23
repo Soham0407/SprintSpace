@@ -2,7 +2,6 @@ import { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ListChecks, Users, MessageCircle, FolderOpen, Flag } from 'lucide-react';
-import Navbar from '../components/layout/Navbar';
 import CountUp from '../components/reactbits/CountUp';
 import SpotlightCard from '../components/reactbits/SpotlightCard';
 import BlackHoleCountdown from '../components/deadline/BlackHoleCountdown';
@@ -37,8 +36,7 @@ const WorkspacePage = () => {
 
   return (
     <div className="bg-ink min-h-screen">
-      <section className="relative pt-28 pb-10 px-4 md:px-6">
-        <Navbar />
+      <section className="relative pt-12 md:pt-16 pb-10 px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
           {error ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">

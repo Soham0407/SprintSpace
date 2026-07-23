@@ -1,13 +1,9 @@
-import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
-import Navbar from '../components/layout/Navbar';
 import ChaosMockup from '../components/hero/ChaosMockup';
 import CleanMockup from '../components/hero/CleanMockup';
 import RevealMask from '../components/hero/RevealMask';
 import CursorGlow from '../components/hero/CursorGlow';
+import FloatingEnterSprint from '../components/hero/FloatingEnterSprint';
 import { LiquidChrome } from '../components/reactbits/LiquidChrome';
-import StarBorder from '../components/reactbits/StarBorder';
-import ClickSpark from '../components/reactbits/ClickSpark';
 
 const Hero = () => {
   return (
@@ -39,8 +35,6 @@ const Hero = () => {
       <div className="hud-corner hud-corner--tr" />
       <div className="hud-corner hud-corner--bl" />
       <div className="hud-corner hud-corner--br" />
-
-      <Navbar />
 
       {/* Heading */}
       <div className="absolute top-[22%] sm:top-[19%] left-0 right-0 flex flex-col items-center text-center px-5 pointer-events-none z-40">
@@ -85,27 +79,9 @@ const Hero = () => {
         <p className="text-xs sm:text-sm text-primary/70 leading-relaxed font-sans">
           Move your cursor to see what&apos;s underneath. Then go build it for real.
         </p>
-        <ClickSpark sparkColor="#FF5B2E" sparkCount={10} sparkRadius={16}>
-          <Link to="/workspace">
-            <StarBorder
-              as="button"
-              color="#FF5B2E"
-              speed="4s"
-              className="group"
-            >
-              <span
-                className="flex items-center gap-2 bg-primary text-ink rounded-full pl-5 pr-1.5 py-1.5 font-medium text-sm transition-all group-hover:gap-3"
-                style={{ boxShadow: '0 0 24px 2px rgba(255,91,46,0.35)' }}
-              >
-                Enter the Sprint
-                <span className="bg-ink rounded-full w-8 h-8 flex items-center justify-center transition-transform group-hover:scale-110">
-                  <ArrowRight size={16} className="text-primary" />
-                </span>
-              </span>
-            </StarBorder>
-          </Link>
-        </ClickSpark>
       </div>
+
+      <FloatingEnterSprint />
     </section>
   );
 };
