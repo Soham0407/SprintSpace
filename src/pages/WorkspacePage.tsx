@@ -176,26 +176,28 @@ const WorkspacePage = () => {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                 <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
-                  <SpotlightCard
-                    className="h-full flex flex-col cursor-pointer"
-                    spotlightColor="rgba(255, 91, 46, 0.15)"
-                  >
-                    <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center text-primary mb-5">
-                      <Users size={20} />
-                    </div>
-                    <h3 className="text-primary text-lg md:text-xl mb-3">SprintRoom</h3>
-                    <ul className="space-y-2">
-                      <li className="flex items-center gap-2 text-sm text-gray-400">
-                        <MessageCircle size={13} className="text-accent shrink-0" /> Team Chat
-                      </li>
-                      <li className="flex items-center gap-2 text-sm text-gray-400">
-                        <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Meetings
-                      </li>
-                      <li className="flex items-center gap-2 text-sm text-gray-400">
-                        <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Online Members
-                      </li>
-                    </ul>
-                  </SpotlightCard>
+                  <Link to="/sprintroom" className="block h-full">
+                    <SpotlightCard
+                      className="h-full flex flex-col cursor-pointer"
+                      spotlightColor="rgba(255, 91, 46, 0.15)"
+                    >
+                      <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center text-primary mb-5">
+                        <Users size={20} />
+                      </div>
+                      <h3 className="text-primary text-lg md:text-xl mb-3">SprintRoom</h3>
+                      <ul className="space-y-2">
+                        <li className="flex items-center gap-2 text-sm text-gray-400">
+                          <MessageCircle size={13} className="text-accent shrink-0" /> Team Chat
+                        </li>
+                        <li className="flex items-center gap-2 text-sm text-gray-400">
+                          <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Meetings
+                        </li>
+                        <li className="flex items-center gap-2 text-sm text-gray-400">
+                          <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Online Members
+                        </li>
+                      </ul>
+                    </SpotlightCard>
+                  </Link>
                 </motion.div>
 
                 <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>

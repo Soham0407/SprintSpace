@@ -9,6 +9,7 @@ const SignupPage = lazy(() => import('./pages/SignupPage'));
 const DiscoverPage = lazy(() => import('./pages/DiscoverPage'));
 const TeamMatchPage = lazy(() => import('./pages/TeamMatchPage'));
 const ResourceHubPage = lazy(() => import('./pages/ResourceHubPage'));
+const SprintRoomPage = lazy(() => import('./pages/SprintRoomPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 const SpotifyCallbackPage = lazy(() => import('./pages/SpotifyCallbackPage'));
 
@@ -26,6 +27,7 @@ function App() {
           <Route path="/discover" element={<DiscoverPage />} />
           <Route path="/teammatch" element={<TeamMatchPage />} />
           <Route path="/resources" element={<ResourceHubPage />} />
+          <Route path="/sprintroom" element={<SprintRoomPage />} />
           <Route path="/archive" element={<ArchivePage />} />
           <Route path="/callback" element={<SpotifyCallbackPage />} />
         </Routes>
