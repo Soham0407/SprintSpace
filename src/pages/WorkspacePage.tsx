@@ -1,13 +1,13 @@
 import { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { AlertTriangle, ListChecks } from 'lucide-react';
+import { AlertTriangle, ListChecks, Users, MessageCircle, FolderOpen, Flag } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import CountUp from '../components/reactbits/CountUp';
 import SpotlightCard from '../components/reactbits/SpotlightCard';
 import BlackHoleCountdown from '../components/deadline/BlackHoleCountdown';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { getWorkspace } from '../api/workspace';
-
+import AskAIWidget from '../components/workspace/AskAIWidget';
 const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value: number }) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-60px' });
@@ -168,8 +168,74 @@ const WorkspacePage = () => {
               </div>
             </div>
           </section>
+
+          <section className="px-4 md:px-6 py-10">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-primary text-lg mb-6">Action Center</h2>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
+                  <SpotlightCard
+                    className="h-full flex flex-col cursor-pointer"
+                    spotlightColor="rgba(255, 91, 46, 0.15)"
+                  >
+                    <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center text-primary mb-5">
+                      <Users size={20} />
+                    </div>
+                    <h3 className="text-primary text-lg md:text-xl mb-3">SprintRoom</h3>
+                    <ul className="space-y-2">
+                      <li className="flex items-center gap-2 text-sm text-gray-400">
+                        <MessageCircle size={13} className="text-accent shrink-0" /> Team Chat
+                      </li>
+                      <li className="flex items-center gap-2 text-sm text-gray-400">
+                        <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Meetings
+                      </li>
+                      <li className="flex items-center gap-2 text-sm text-gray-400">
+                        <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Online Members
+                      </li>
+                    </ul>
+                  </SpotlightCard>
+                </motion.div>
+
+                <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
+                  <SpotlightCard
+                    className="h-full flex flex-col cursor-pointer"
+                    spotlightColor="rgba(255, 91, 46, 0.15)"
+                  >
+                    <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center text-primary mb-5">
+                      <FolderOpen size={20} />
+                    </div>
+                    <h3 className="text-primary text-lg md:text-xl mb-3">Resources</h3>
+                    <ul className="space-y-2">
+                      <li className="flex items-center gap-2 text-sm text-gray-400">
+                        <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> GitHub
+                      </li>
+                      <li className="flex items-center gap-2 text-sm text-gray-400">
+                        <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Files
+                      </li>
+                      <li className="flex items-center gap-2 text-sm text-gray-400">
+                        <span className="mt-0 w-1 h-1 rounded-full bg-accent shrink-0" /> Rulebook
+                      </li>
+                    </ul>
+                  </SpotlightCard>
+                </motion.div>
+              </div>
+
+              <div className="flex justify-center">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full lg:w-1/2 flex items-center justify-center gap-2 border border-accent/50 rounded-2xl py-4 text-accent text-sm font-medium bg-card hover:shadow-[0_0_24px_2px_rgba(255,91,46,0.25)] transition-shadow"
+                >
+                  <Flag size={16} />
+                  Finish Competition
+                </motion.button>
+              </div>
+            </div>
+          </section>
         </>
       )}
+      <AskAIWidget />
     </div>
   );
 };
