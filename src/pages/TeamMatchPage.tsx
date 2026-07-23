@@ -1,28 +1,26 @@
-import { Sparkles, MessageCircle, Users2 } from 'lucide-react';
+import { Users2 } from "lucide-react";
 import PageShell from '../components/layout/PageShell';
 import SpotlightCard from '../components/reactbits/SpotlightCard';
-import StarBorder from '../components/reactbits/StarBorder';
 import SkeletonCard from '../components/layout/SkeletonCard';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { getCandidates } from '../api/candidates';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const TeamMatchPage = () => {
   const { data: candidates, loading } = useAsyncData(getCandidates, []);
+  const navigate = useNavigate();
+
+const [invited, setInvited] = useState<string[]>([]);
+
+const MAX_MEMBERS = 4; 
 
   return (
     <PageShell
-      eyebrow="AI TEAMMATCH"
-      title="Find the team you actually need."
-      intro="Matched by skills, interests, and availability — not by who happens to reply first in the group chat."
+      eyebrow="TEAM SETUP"
+      title="Invite Team Members"
+      intro="Choose teammates for your competition. Invitations will be sent once you finish."
     >
-      <div className="flex justify-end mb-6">
-        <StarBorder as="button" color="#FF5B2E" speed="5s">
-          <span className="flex items-center gap-2 bg-primary text-ink rounded-full px-5 py-2 text-sm font-medium">
-            <Sparkles size={14} />
-            Post your project
-          </span>
-        </StarBorder>
-      </div>
 
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -41,7 +39,55 @@ const TeamMatchPage = () => {
       )}
 
       {!loading && candidates && candidates.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <>
+  <div className="mb-8">
+    <SpotlightCard
+      className="!p-6"
+      spotlightColor="rgba(255, 91, 46, 0.15)"
+    >
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+
+        <div>
+          <p className="text-xs tracking-widest text-gray-500 mb-2">
+            CREATING
+          </p>
+
+          <h2 className="text-2xl font-display text-primary">
+            Web Wonders 2026
+          </h2>
+
+          <p className="text-gray-500 mt-2">
+            Invite teammates before creating your workspace.
+          </p>
+        </div>
+
+        <div className="flex gap-8">
+
+          <div className="text-center">
+            <p className="text-3xl text-accent font-semibold">
+              {invited.length + 1}
+            </p>
+            <p className="text-xs text-gray-500">
+              Current Members
+            </p>
+          </div>
+
+          <div className="text-center">
+            <p className="text-3xl text-primary font-semibold">
+              {MAX_MEMBERS}
+            </p>
+            <p className="text-xs text-gray-500">
+              Maximum
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+    </SpotlightCard>
+  </div>
+
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {candidates.map((c) => (
             <SpotlightCard key={c.id} className="h-full flex flex-col" spotlightColor="rgba(255, 91, 46, 0.15)">
               <div className="flex items-start justify-between mb-4">
@@ -68,16 +114,33 @@ const TeamMatchPage = () => {
               <div className="flex items-center justify-between">
                 <span className="text-accent text-sm font-medium">{c.matchScore}% match</span>
                 <button
-                  disabled={!c.available}
-                  className="flex items-center gap-1.5 text-xs text-primary/80 hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <MessageCircle size={13} /> Message
-                </button>
+    disabled={
+        !c.available ||
+        invited.includes(c.id)
+        || invited.length >= MAX_MEMBERS}
+          onClick={() =>
+            setInvited([...invited, c.id])
+          }
+          className="flex items-center gap-2 text-xs bg-primary text-ink rounded-full px-4 py-2 disabled:opacity-40">
+          {invited.includes(c.id) ? "Invitation Sent ✓": "Invite"}
+        </button>
               </div>
             </SpotlightCard>
           ))}
         </div>
-      )}
+
+<div className="flex justify-center mt-10">
+  <button
+    disabled={invited.length < MAX_MEMBERS - 1}
+    onClick={() => navigate("/newcompetition")}
+    className="w-full md:w-96 rounded-2xl py-4 bg-primary text-ink font-semibold disabled:opacity-40"
+  >
+    Finish
+  </button>
+</div>
+
+</>
+)}
     </PageShell>
   );
 };
