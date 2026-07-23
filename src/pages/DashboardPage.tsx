@@ -7,7 +7,7 @@ import SpotlightCard from '../components/reactbits/SpotlightCard';
 import SettingsDrawer from '../components/dashboard/SettingsDrawer';
 
 // ─── MOCK DATA ──────────────────────────────────────────────────────────────
-const USER_NAME = 'Heshika';
+const USER_NAME = 'user';
 
 const MOCK_COMPETITIONS = [
   { id: 'c1', name: 'Web Wonders 2026', stage: 'Backend Development', daysRemaining: 6 },
@@ -54,6 +54,7 @@ const DashboardPage = () => {
             whileHover={{ y: -2 }}
             whileTap={{ scale: 0.99 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            onClick={() => navigate('/newcompetition')}
             className="w-full text-left mb-12"
           >
             <div className="relative rounded-3xl overflow-hidden border border-accent/25 bg-gradient-to-br from-accent/10 via-card to-card px-6 py-8 md:px-10 md:py-10 hover:border-accent/40 transition-colors">

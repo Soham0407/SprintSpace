@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
+import NewCompetitionPage from "./pages/NewCompetitionPage";
 import MusicPlayer from './components/music/MusicPlayer';
 
 const WorkspacePage = lazy(() => import('./pages/WorkspacePage'));
@@ -27,6 +28,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/discover" element={<DiscoverPage />} />
+          <Route path="/newcompetition" element={<NewCompetitionPage />}/>
           <Route path="/teammatch" element={<TeamMatchPage />} />
           <Route path="/resources" element={<ResourceHubPage />} />
           <Route path="/sprintroom" element={<SprintRoomPage />} />
