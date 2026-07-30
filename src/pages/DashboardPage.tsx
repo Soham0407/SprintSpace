@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { supabase } from "../lib/supabaseClient";
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Settings, Plus, FolderArchive, ArrowRight, Sparkles } from 'lucide-react';
@@ -7,7 +8,6 @@ import SpotlightCard from '../components/reactbits/SpotlightCard';
 import SettingsDrawer from '../components/dashboard/SettingsDrawer';
 
 // ─── MOCK DATA ──────────────────────────────────────────────────────────────
-const USER_NAME = 'user';
 
 const MOCK_COMPETITIONS = [
   { id: 'c1', name: 'Web Wonders 2026', stage: 'Backend Development', daysRemaining: 6 },
@@ -23,6 +23,31 @@ function getGreeting() {
 }
 
 const DashboardPage = () => {
+  const [username, setUsername] = useState("User");
+useEffect(() => {
+  const loadProfile = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+      console.log("Profile:", data);
+      console.log("Error:", error);
+
+    if ( data) {
+      setUsername(data.name);
+    }
+  };
+
+  loadProfile();
+  }, []);
   const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -36,7 +61,7 @@ const DashboardPage = () => {
           <div className="flex items-start justify-between mb-10">
             <div>
               <h1 className="font-display text-primary text-2xl md:text-4xl leading-tight tracking-tight mb-2">
-                {getGreeting()}, {USER_NAME} 👋
+                {getGreeting()}, {username} 👋
               </h1>
               <p className="text-gray-500 text-sm md:text-base">Ready to build something today?</p>
             </div>
@@ -84,7 +109,7 @@ const DashboardPage = () => {
                     <div className="flex items-center justify-between mt-auto">
                       <span className="text-xs text-gray-500">{c.daysRemaining} days left</span>
                       <button
-                        onClick={() => navigate('/workspace')}
+                        onClick={() => navigate('/workspace/${workspaceId}')}
                         className="flex items-center gap-1 text-sm text-primary/80 hover:text-primary transition-colors"
                       >
                         Continue <ArrowRight size={13} />

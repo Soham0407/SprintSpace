@@ -1,4 +1,6 @@
 import { useState } from "react";
+import SpotlightCard from "../components/reactbits/SpotlightCard";
+import { createCompetition } from "../api/createCompetition";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import {
@@ -10,7 +12,6 @@ import {
   Rocket,
   FolderKanban,
 } from "lucide-react";
-import SpotlightCard from "../components/reactbits/SpotlightCard";
 
 const competitionTypes = [
   {
@@ -46,7 +47,11 @@ export default function NewCompetitionPage() {
   const invitedMembers =
   location.state?.invitedMembers ?? [];
   const [type, setType] = useState("hackathon");
-
+  const [maxMembers, setMaxMembers] = useState(4);
+  const [soloMode, setSoloMode] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  
   return (
     <div className="min-h-screen bg-ink px-4 md:px-6 py-10">
       <div className="max-w-5xl mx-auto">
@@ -205,23 +210,50 @@ export default function NewCompetitionPage() {
               </label>
 
               <select
-                defaultValue="4"
+                value={maxMembers}
+                onChange={(e) => setMaxMembers(Number(e.target.value))}
+                disabled={soloMode}
                 className="rounded-xl bg-surface border border-white/10 px-4 py-3 text-primary"
               >
+                <option>1</option>
                 <option>2</option>
                 <option>3</option>
                 <option>4</option>
                 <option>5</option>
                 <option>6</option>
               </select>
+              <div className="mt-4 flex items-center gap-3">
+  <input
+    id="soloMode"
+    type="checkbox"
+    checked={soloMode}
+    onChange={(e) => {
+      setSoloMode(e.target.checked);
+
+      if (e.target.checked) {
+        setMaxMembers(1);
+      } else {
+        setMaxMembers(4);
+      }
+    }}
+  />
+
+  <label htmlFor="soloMode" className="text-sm text-primary">
+    Solo Competition
+  </label>
+</div>
 
             </div>
 
             <div>
 
-              <label className="text-sm text-gray-400 mb-3 block">
-                Current Members
-              </label>
+              <label className="text-sm text-gray-400 mb-3 block flex justify-between">
+  <span>Members</span>
+
+  <span className="text-accent">
+    {1 + invitedMembers.length} / {maxMembers}
+  </span>
+</label>
 
               <div className="rounded-xl border border-white/10 bg-surface px-5 py-4 flex justify-between items-center">
 
@@ -248,7 +280,8 @@ export default function NewCompetitionPage() {
               </div>
 
             </div>
-            {invitedMembers.map((member: any) => (
+            {!soloMode &&
+  invitedMembers.map((member: any) => (
   <div
     key={member.id}
     className="rounded-xl border border-white/10 bg-surface px-5 py-4 flex justify-between items-center mt-3"
@@ -263,23 +296,52 @@ export default function NewCompetitionPage() {
 
       <div>
         <p className="text-primary">{member.name}</p>
-        <p className="text-xs text-accent">
-          Invitation Sent
+        <p className="text-xs text-yellow-400">
+          Pending Invitation
         </p>
       </div>
     </div>
-  </div>
-))}
+    <button
+  onClick={() => {
+    const updated = invitedMembers.filter(
+      (m: any) => m.id !== member.id
+    );
 
-            <button
-              onClick={() =>navigate("/teammatch", {state: {invitedMembers,},
-  })
+    navigate("/newcompetition", {
+      replace: true,
+      state: {
+        invitedMembers: updated,
+      },
+    });
+  }}
+  className="text-red-400 hover:text-red-300 text-sm"
+>
+  Cancel
+</button>
+  </div>
+))
 }
-              className="w-full rounded-2xl border border-accent/30 py-4 flex items-center justify-center gap-3 text-accent hover:bg-accent/10 transition"
-            >
-              <Users size={18} />
-              {invitedMembers.length > 0 ? "Invite More Members": "Invite Team Members"}
-            </button>
+
+            {!soloMode && (
+  <button
+    disabled={1 + invitedMembers.length >= maxMembers}
+    onClick={() => {
+      if (1 + invitedMembers.length >= maxMembers) return;
+
+      navigate("/teammatch", {
+        state: {
+          invitedMembers,
+        },
+      });
+    }}
+    className="w-full rounded-2xl border border-accent/30 py-4 flex items-center justify-center gap-3 text-accent hover:bg-accent/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
+  >
+    <Users size={18} />
+    {invitedMembers.length > 0
+      ? "Invite More Members"
+      : "Invite Team Members"}
+  </button>
+)}
 
           </div>
         </SpotlightCard>
@@ -303,11 +365,37 @@ onChange={(e)=>setDescription(e.target.value)}
           />
         </SpotlightCard>
 
+        {createError && (
+          <p className="text-red-400 text-sm mb-4 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3">
+            {createError}
+          </p>
+        )}
+
         <button
-          onClick={() => navigate("/workspace")}
-          className="w-full rounded-2xl bg-primary text-ink py-4 font-semibold hover:opacity-90 transition"
+          disabled={isCreating}
+          onClick={async () => {
+            setCreateError(null);
+            setIsCreating(true);
+            try {
+              const workspaceId = await createCompetition({
+  name: competitionName,
+  type,
+  startDate,
+  endDate,
+  description,
+  maxMembers,
+});
+
+navigate(`/workspace/${workspaceId}`);
+            } catch (e) {
+              setCreateError((e as Error).message);
+            } finally {
+              setIsCreating(false);
+            }
+          }}
+          className="w-full rounded-2xl bg-primary text-ink py-4 font-semibold hover:opacity-90 transition disabled:opacity-50"
         >
-          Create Workspace
+          {isCreating ? "Creating..." : "Create Workspace"}
         </button>
 
       </div>
