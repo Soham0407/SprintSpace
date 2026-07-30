@@ -198,7 +198,7 @@ BEGIN
     SET active_users = EXCLUDED.active_users,
         updated_at   = NOW();
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 
 -- ───────────────────────────────────────────────────────────────────────────
@@ -215,7 +215,13 @@ BEGIN
     RAISE EXCEPTION 'Workspace % not found', workspace_id;
   END IF;
 
+  -- Verify authorization: owner or workspace member
+  IF ws.created_by != auth.uid() AND NOT public.is_workspace_member(workspace_id) THEN
+    RAISE EXCEPTION 'Access denied to workspace %', workspace_id;
+  END IF;
+
   SELECT json_build_object(
+    'competitionId',    ws.competition_id,
     'competitionName',  ws.competition_name,
     'healthScore',      ws.health_score,
     'progressPercent',  ws.progress_percent,
@@ -270,7 +276,7 @@ BEGIN
 
   RETURN result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -295,12 +301,18 @@ CREATE POLICY "profiles: public read"
   ON profiles FOR SELECT USING (TRUE);
 CREATE POLICY "profiles: own update"
   ON profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "profiles: own delete"
+  ON profiles FOR DELETE USING (auth.uid() = id);
 
 -- Competitions
 CREATE POLICY "competitions: public read"
   ON competitions FOR SELECT USING (TRUE);
 CREATE POLICY "competitions: authenticated insert"
   ON competitions FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "competitions: owner update"
+  ON competitions FOR UPDATE USING (auth.uid() = created_by);
+CREATE POLICY "competitions: owner delete"
+  ON competitions FOR DELETE USING (auth.uid() = created_by);
 
 -- Candidates
 CREATE POLICY "candidates: public read"
@@ -320,72 +332,85 @@ CREATE POLICY "archive: public read"
 CREATE POLICY "archive: authenticated insert"
   ON archive_projects FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
--- Create a helper function to break RLS infinite recursion
+-- Create helper functions to break RLS infinite recursion
 CREATE OR REPLACE FUNCTION public.is_workspace_member(ws_id UUID)
 RETURNS BOOLEAN
-LANGUAGE sql SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
-  SELECT EXISTS (
+BEGIN
+  RETURN EXISTS (
     SELECT 1 FROM workspace_members
     WHERE workspace_id = ws_id AND profile_id = auth.uid()
   );
+END;
 $$;
 
--- Workspaces (owner + members can read; owner can write)
-CREATE POLICY "workspaces: member read"
-  ON workspaces FOR SELECT
-  USING (auth.uid() = created_by OR public.is_workspace_member(id));
+CREATE OR REPLACE FUNCTION public.is_workspace_owner(ws_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM workspaces
+    WHERE id = ws_id AND created_by = auth.uid()
+  );
+END;
+$$;
 
-CREATE POLICY "workspaces: owner write"
-  ON workspaces FOR UPDATE USING (auth.uid() = created_by);
-CREATE POLICY "workspaces: owner insert"
-  ON workspaces FOR INSERT WITH CHECK (auth.uid() = created_by);
+-- Workspaces
+CREATE POLICY "workspaces: select"
+  ON workspaces FOR SELECT USING (auth.uid() = created_by OR public.is_workspace_member(id));
+CREATE POLICY "workspaces: insert"
+  ON workspaces FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = created_by);
+CREATE POLICY "workspaces: update"
+  ON workspaces FOR UPDATE USING (auth.uid() = created_by OR public.is_workspace_member(id))
+  WITH CHECK (auth.uid() = created_by OR public.is_workspace_member(id));
+CREATE POLICY "workspaces: delete"
+  ON workspaces FOR DELETE USING (auth.uid() = created_by);
 
 -- Kanban columns
-CREATE POLICY "kanban_columns: member read"
-  ON kanban_columns FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM workspaces w
-      WHERE w.id = kanban_columns.workspace_id
-        AND (w.created_by = auth.uid() OR public.is_workspace_member(w.id))
-    )
-  );
+CREATE POLICY "kanban_columns: select"
+  ON kanban_columns FOR SELECT USING (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
+CREATE POLICY "kanban_columns: insert"
+  ON kanban_columns FOR INSERT WITH CHECK (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
+CREATE POLICY "kanban_columns: update"
+  ON kanban_columns FOR UPDATE USING (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id))
+  WITH CHECK (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
+CREATE POLICY "kanban_columns: delete"
+  ON kanban_columns FOR DELETE USING (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
 
 -- Kanban tasks
-CREATE POLICY "kanban_tasks: member read/write"
-  ON kanban_tasks FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM workspaces w
-      WHERE w.id = kanban_tasks.workspace_id
-        AND (w.created_by = auth.uid() OR public.is_workspace_member(w.id))
-    )
-  );
+CREATE POLICY "kanban_tasks: select"
+  ON kanban_tasks FOR SELECT USING (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
+CREATE POLICY "kanban_tasks: insert"
+  ON kanban_tasks FOR INSERT WITH CHECK (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
+CREATE POLICY "kanban_tasks: update"
+  ON kanban_tasks FOR UPDATE USING (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id))
+  WITH CHECK (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
+CREATE POLICY "kanban_tasks: delete"
+  ON kanban_tasks FOR DELETE USING (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
 
 -- Workspace members
-CREATE POLICY "workspace_members: member read"
-  ON workspace_members FOR SELECT
-  USING (
-    profile_id = auth.uid() OR 
-    EXISTS (
-      SELECT 1 FROM workspaces w 
-      WHERE w.id = workspace_members.workspace_id
-        AND w.created_by = auth.uid()
-    ) OR
-    public.is_workspace_member(workspace_id)
-  );
+CREATE POLICY "workspace_members: select"
+  ON workspace_members FOR SELECT USING (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id) OR profile_id = auth.uid());
+CREATE POLICY "workspace_members: insert"
+  ON workspace_members FOR INSERT WITH CHECK (public.is_workspace_owner(workspace_id) OR profile_id = auth.uid());
+CREATE POLICY "workspace_members: update"
+  ON workspace_members FOR UPDATE USING (public.is_workspace_owner(workspace_id) OR profile_id = auth.uid())
+  WITH CHECK (public.is_workspace_owner(workspace_id) OR profile_id = auth.uid());
+CREATE POLICY "workspace_members: delete"
+  ON workspace_members FOR DELETE USING (public.is_workspace_owner(workspace_id) OR profile_id = auth.uid());
 
 -- Timeline steps
-CREATE POLICY "timeline_steps: member read/write"
-  ON timeline_steps FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM workspaces w 
-      WHERE w.id = timeline_steps.workspace_id
-        AND (w.created_by = auth.uid() OR public.is_workspace_member(w.id))
-    )
-  );
+CREATE POLICY "timeline_steps: select"
+  ON timeline_steps FOR SELECT USING (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
+CREATE POLICY "timeline_steps: insert"
+  ON timeline_steps FOR INSERT WITH CHECK (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
+CREATE POLICY "timeline_steps: update"
+  ON timeline_steps FOR UPDATE USING (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id))
+  WITH CHECK (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
+CREATE POLICY "timeline_steps: delete"
+  ON timeline_steps FOR DELETE USING (public.is_workspace_owner(workspace_id) OR public.is_workspace_member(workspace_id));
 
 -- Country stats
 CREATE POLICY "country_stats: public read"

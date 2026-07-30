@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI
 from app.services.gemini_client import client
 from app.core.config import settings

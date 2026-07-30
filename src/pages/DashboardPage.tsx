@@ -24,34 +24,73 @@ function getGreeting() {
 
 const DashboardPage = () => {
   const [username, setUsername] = useState("User");
-useEffect(() => {
-  const loadProfile = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const [competitions, setCompetitions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    if (!user) return;
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      setLoading(true);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+        if (!user) {
+          setCompetitions(MOCK_COMPETITIONS);
+          setLoading(false);
+          return;
+        }
 
-      console.log("Profile:", data);
-      console.log("Error:", error);
+        // Load profile
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", user.id)
+          .single();
 
-    if ( data) {
-      setUsername(data.name);
-    }
-  };
+        if (profile) {
+          setUsername(profile.name);
+        }
 
-  loadProfile();
+        // Load workspaces
+        const { data: wsData, error: wsError } = await supabase
+          .from('workspaces')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (wsError) {
+          console.error("Error loading workspaces:", wsError.message);
+          setCompetitions(MOCK_COMPETITIONS);
+        } else if (wsData && wsData.length > 0) {
+          const mapped = wsData.map((w: any) => {
+            const daysRemaining = Math.max(
+              0,
+              Math.ceil((new Date(w.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+            );
+            return {
+              id: w.id,
+              name: w.competition_name,
+              stage: `Progress: ${w.progress_percent}%`,
+              daysRemaining,
+            };
+          });
+          setCompetitions(mapped);
+        } else {
+          setCompetitions([]);
+        }
+      } catch (e) {
+        console.error("Dashboard loading failed:", e);
+        setCompetitions(MOCK_COMPETITIONS);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
   }, []);
+
   const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
-
-  const competitions = MOCK_COMPETITIONS;
 
   return (
     <div className="bg-ink min-h-screen">
@@ -94,7 +133,16 @@ useEffect(() => {
           </motion.button>
 
           {/* Current Competitions */}
-          {competitions.length > 0 ? (
+          {loading ? (
+            <div className="mb-12 animate-pulse">
+              <div className="h-5 w-48 bg-white/10 rounded mb-6" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {new Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="h-32 bg-card border border-white/5 rounded-2xl" />
+                ))}
+              </div>
+            </div>
+          ) : competitions.length > 0 ? (
             <div className="mb-12">
               <h2 className="text-primary text-lg mb-6">Current Competitions</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -109,7 +157,7 @@ useEffect(() => {
                     <div className="flex items-center justify-between mt-auto">
                       <span className="text-xs text-gray-500">{c.daysRemaining} days left</span>
                       <button
-                        onClick={() => navigate('/workspace/${workspaceId}')}
+                        onClick={() => navigate(`/workspace/${c.id}`)}
                         className="flex items-center gap-1 text-sm text-primary/80 hover:text-primary transition-colors"
                       >
                         Continue <ArrowRight size={13} />

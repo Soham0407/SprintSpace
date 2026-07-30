@@ -1,14 +1,15 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ListChecks, Users, MessageCircle, FolderOpen, Flag } from 'lucide-react';
+import { AlertTriangle, ListChecks, Users, MessageCircle, FolderOpen, Flag, ArrowLeft, Trash2, Loader2 } from 'lucide-react';
 import CountUp from '../components/reactbits/CountUp';
 import SpotlightCard from '../components/reactbits/SpotlightCard';
 import BlackHoleCountdown from '../components/deadline/BlackHoleCountdown';
 import { useAsyncData } from '../hooks/useAsyncData';
-import { getWorkspace } from '../api/workspace';
+import { getWorkspace, deleteWorkspace } from '../api/workspace';
+import { createArchive } from '../api/archive';
 import AskAIWidget from '../components/workspace/AskAIWidget';
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value: number }) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-60px' });
@@ -32,14 +33,80 @@ const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value:
 };
 
 const WorkspacePage = () => {
+  const navigate = useNavigate();
   const { workspaceId } = useParams();
   const { data: ws, loading, error } =
   useAsyncData(() => getWorkspace(workspaceId!), [workspaceId]);
+
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [archiveResult, setArchiveResult] = useState<'Winner' | 'Finalist' | 'Runner-up' | 'Shipped'>('Shipped');
+  const [archiveStack, setArchiveStack] = useState('');
+  const [archiveUrl, setArchiveUrl] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete this workspace and its linked competition? This action cannot be undone.")) {
+      return;
+    }
+    
+    setIsDeleting(true);
+    setActionError(null);
+    try {
+      await deleteWorkspace(workspaceId!, ws?.competitionId);
+      navigate('/dashboard');
+    } catch (e) {
+      setActionError((e as Error).message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleArchive = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ws) return;
+
+    setIsArchiving(true);
+    setActionError(null);
+    try {
+      const parsedStack = archiveStack
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      await createArchive({
+        name: ws.competitionName,
+        competition: ws.competitionName,
+        competitionId: ws.competitionId,
+        workspaceId: workspaceId,
+        result: archiveResult,
+        stack: parsedStack,
+        href: archiveUrl || '#',
+      });
+
+      await deleteWorkspace(workspaceId!, ws.competitionId);
+
+      setIsArchiveModalOpen(false);
+      navigate('/dashboard');
+    } catch (e) {
+      setActionError((e as Error).message);
+    } finally {
+      setIsArchiving(false);
+    }
+  };
 
   return (
     <div className="bg-ink min-h-screen">
       <section className="relative pt-12 md:pt-16 pb-10 px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors mb-8"
+          >
+            <ArrowLeft size={16} />
+            Back
+          </button>
           {error ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <AlertTriangle size={48} className="text-red-400 mb-4" />
@@ -226,18 +293,130 @@ const WorkspacePage = () => {
                 </motion.div>
               </div>
 
-              <div className="flex justify-center">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full lg:w-1/2 flex items-center justify-center gap-2 border border-accent/50 rounded-2xl py-4 text-accent text-sm font-medium bg-card hover:shadow-[0_0_24px_2px_rgba(255,91,46,0.25)] transition-shadow"
-                >
-                  <Flag size={16} />
-                  Finish Competition
-                </motion.button>
+              <div className="flex flex-col items-center gap-4 mt-6">
+                {actionError && (
+                  <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3 w-full lg:w-2/3">
+                    {actionError}
+                  </p>
+                )}
+                
+                <div className="flex flex-col sm:flex-row justify-center gap-4 w-full lg:w-2/3 mx-auto">
+                  <motion.button
+                    onClick={() => setIsArchiveModalOpen(true)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex-1 flex items-center justify-center gap-2 border border-accent/50 rounded-2xl py-4 text-accent text-sm font-medium bg-card hover:shadow-[0_0_24px_2px_rgba(255,91,46,0.25)] transition-shadow"
+                  >
+                    <Flag size={16} />
+                    Finish Competition & Archive
+                  </motion.button>
+
+                  <motion.button
+                    disabled={isDeleting}
+                    onClick={handleDelete}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex-1 flex items-center justify-center gap-2 border border-red-500/50 rounded-2xl py-4 text-red-500 text-sm font-medium bg-card hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" /> Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 size={16} />
+                        Delete Workspace
+                      </>
+                    )}
+                  </motion.button>
+                </div>
               </div>
             </div>
           </section>
+
+      {/* Archive Modal */}
+      {isArchiveModalOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-ink/80 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-lg bg-card border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl relative"
+          >
+            <h3 className="font-display text-primary text-xl md:text-2xl mb-2">Finish & Archive Project</h3>
+            <p className="text-gray-400 text-sm mb-6">
+              Archive this workspace into your showcase! Once archived, it will be moved from active workspaces to the archive hub.
+            </p>
+
+            <form onSubmit={handleArchive} className="space-y-5">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1.5">Project Result</label>
+                <select
+                  value={archiveResult}
+                  onChange={(e) => setArchiveResult(e.target.value as any)}
+                  className="w-full rounded-xl bg-surface border border-white/10 px-4 py-3 text-primary outline-none focus:border-accent"
+                >
+                  <option value="Shipped">Shipped</option>
+                  <option value="Winner">Winner</option>
+                  <option value="Finalist">Finalist</option>
+                  <option value="Runner-up">Runner-up</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 block mb-1.5">Tech Stack (comma separated)</label>
+                <input
+                  type="text"
+                  placeholder="Next.js, Tailwind, Supabase"
+                  value={archiveStack}
+                  onChange={(e) => setArchiveStack(e.target.value)}
+                  className="w-full rounded-xl bg-surface border border-white/10 px-4 py-3 text-primary outline-none focus:border-accent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 block mb-1.5">Project Demo / Code Link (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://github.com/..."
+                  value={archiveUrl}
+                  onChange={(e) => setArchiveUrl(e.target.value)}
+                  className="w-full rounded-xl bg-surface border border-white/10 px-4 py-3 text-primary outline-none focus:border-accent"
+                />
+              </div>
+
+              {actionError && (
+                <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3">
+                  {actionError}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsArchiveModalOpen(false)}
+                  className="flex-1 rounded-2xl border border-white/10 py-3.5 text-primary text-sm font-medium bg-transparent hover:bg-white/5 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isArchiving}
+                  className="flex-1 rounded-2xl bg-primary text-ink py-3.5 text-sm font-semibold hover:opacity-90 transition flex items-center justify-center gap-2"
+                >
+                  {isArchiving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" /> Archiving...
+                    </>
+                  ) : (
+                    "Confirm & Archive"
+                  )}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
         </>
       )}
       <AskAIWidget />

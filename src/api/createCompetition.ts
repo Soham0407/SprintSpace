@@ -64,7 +64,7 @@ export async function createCompetition(input: CreateCompetitionInput): Promise<
   if (wsError) throw new Error(wsError.message);
 
   // 3. workspace_members — creator as Owner
-  /*const { error: memberError } = await supabase.from('workspace_members').insert({
+  const { error: memberError } = await supabase.from('workspace_members').insert({
     workspace_id: workspace.id,
     profile_id: user.id,
     name: ownerName,
@@ -72,7 +72,7 @@ export async function createCompetition(input: CreateCompetitionInput): Promise<
     progress: 0,
   });
 
-  if (memberError) throw new Error(memberError.message);*/
+  if (memberError) throw new Error(memberError.message);
 
     const { error: kanbanError } = await supabase
   .from("kanban_columns")

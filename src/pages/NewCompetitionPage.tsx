@@ -59,7 +59,7 @@ export default function NewCompetitionPage() {
         {/* Header */}
 
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors mb-8"
         >
           <ArrowLeft size={16} />

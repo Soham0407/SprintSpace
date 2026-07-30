@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import Footer from './Footer';
 
 interface PageShellProps {
@@ -8,10 +10,19 @@ interface PageShellProps {
 }
 
 const PageShell = ({ eyebrow, title, intro, children }: PageShellProps) => {
+  const navigate = useNavigate();
+
   return (
     <div className="bg-ink min-h-screen">
       <section className="relative pt-12 md:pt-16 pb-10 px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors mb-8"
+          >
+            <ArrowLeft size={16} />
+            Back
+          </button>
           <span className="text-xs text-gray-500 tracking-wide">{eyebrow}</span>
           <h1 className="font-display text-primary text-2xl md:text-4xl leading-tight tracking-tight mt-1 mb-3">
             {title}
