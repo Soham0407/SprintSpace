@@ -8,7 +8,7 @@ import BlackHoleCountdown from '../components/deadline/BlackHoleCountdown';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { getWorkspace } from '../api/workspace';
 import AskAIWidget from '../components/workspace/AskAIWidget';
-
+import { useParams } from "react-router-dom";
 const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value: number }) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-60px' });
@@ -32,7 +32,9 @@ const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value:
 };
 
 const WorkspacePage = () => {
-  const { data: ws, loading, error } = useAsyncData(getWorkspace, []);
+  const { workspaceId } = useParams();
+  const { data: ws, loading, error } =
+  useAsyncData(() => getWorkspace(workspaceId!), [workspaceId]);
 
   return (
     <div className="bg-ink min-h-screen">

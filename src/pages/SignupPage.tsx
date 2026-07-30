@@ -31,7 +31,7 @@ const SignupPage = () => {
       // If Supabase returns a session immediately (email confirmation disabled)
       // navigate straight to workspace
       if (result.session) {
-        navigate('/workspace');
+        navigate('/workspace/${workspaceId}');
         return;
       }
 

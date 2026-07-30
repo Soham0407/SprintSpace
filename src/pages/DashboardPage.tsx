@@ -109,7 +109,7 @@ useEffect(() => {
                     <div className="flex items-center justify-between mt-auto">
                       <span className="text-xs text-gray-500">{c.daysRemaining} days left</span>
                       <button
-                        onClick={() => navigate('/workspace')}
+                        onClick={() => navigate('/workspace/${workspaceId}')}
                         className="flex items-center gap-1 text-sm text-primary/80 hover:text-primary transition-colors"
                       >
                         Continue <ArrowRight size={13} />
