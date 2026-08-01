@@ -1,9 +1,10 @@
 from fastapi import FastAPI
+from app.routes.planner import router as planner_router
 from app.services.gemini_client import client
 from app.core.config import settings
 
 app = FastAPI()
-
+app.include_router(planner_router)
 @app.get("/")
 def root():
     return {"message": "SprintSpace AI Backend"}
