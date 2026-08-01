@@ -4,7 +4,6 @@ const NAV_ITEMS = [
   { label: 'Discover', href: '/discover' },
   { label: 'TeamMatch', href: '/teammatch' },
   { label: 'Workspace', href: '/workspace' },
-  { label: 'Resources', href: '/resources' },
   { label: 'Archive', href: '/archive' },
 ];
 
