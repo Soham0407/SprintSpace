@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Bell, Palette, LogOut, Pencil } from 'lucide-react';
+import { X, User, Bell, Palette, LogOut, Camera, Trash2, Loader2, Check } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { getProfile, updateProfile, uploadAvatar, removeAvatar } from '../../api/profile';
+import type { Profile } from '../../api/types';
 
 interface SettingsDrawerProps {
   open: boolean;
@@ -24,9 +27,115 @@ const Toggle = ({ enabled, onChange }: { enabled: boolean; onChange: () => void 
   </button>
 );
 
+const fieldClass =
+  'w-full bg-surface border border-white/10 rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-accent transition-colors';
+
 const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
-  const [notifications, setNotifications] = useState(true);
+  const { user } = useAuth();
+
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [bio, setBio] = useState('');
+  const [role, setRole] = useState('');
+
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
   const [darkTheme, setDarkTheme] = useState(true);
+
+  useEffect(() => {
+    if (!open || !user?.id) return;
+    setLoadingProfile(true);
+    getProfile(user.id)
+      .then((p) => {
+        setProfile(p);
+        setName(p.name ?? '');
+        setUsername(p.username ?? '');
+        setBio(p.bio ?? '');
+        setRole(p.role ?? '');
+      })
+      .catch(() => setProfile(null))
+      .finally(() => setLoadingProfile(false));
+  }, [open, user?.id]);
+
+  const isDirty =
+    profile &&
+    (name !== (profile.name ?? '') ||
+      username !== (profile.username ?? '') ||
+      bio !== (profile.bio ?? '') ||
+      role !== (profile.role ?? ''));
+
+  const handleSaveProfile = async () => {
+    if (!user?.id || !profile) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await updateProfile(user.id, { name, username, bio, role });
+      setProfile(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setSaveError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAvatarChange = async (file: File) => {
+    if (!user?.id) return;
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please choose an image file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Image must be under 5MB.');
+      return;
+    }
+    setAvatarUploading(true);
+    setAvatarError(null);
+    try {
+      const url = await uploadAvatar(user.id, file);
+      setProfile((p) => (p ? { ...p, avatarUrl: url } : p));
+    } catch (e) {
+      setAvatarError((e as Error).message);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    if (!user?.id) return;
+    setAvatarUploading(true);
+    setAvatarError(null);
+    try {
+      await removeAvatar(user.id);
+      setProfile((p) => (p ? { ...p, avatarUrl: null } : p));
+    } catch (e) {
+      setAvatarError((e as Error).message);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleNotificationsToggle = async () => {
+    if (!user?.id || !profile) return;
+    const next = !profile.notificationsEnabled;
+    setProfile({ ...profile, notificationsEnabled: next });
+    try {
+      await updateProfile(user.id, { notificationsEnabled: next });
+    } catch {
+      setProfile({ ...profile, notificationsEnabled: !next });
+    }
+  };
+
+  const initials = (profile?.name || user?.email || '?').slice(0, 2).toUpperCase();
 
   return createPortal(
     <AnimatePresence>
@@ -73,21 +182,93 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
                 <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
                   <User size={13} /> Profile
                 </div>
-                <div className="bg-card border border-white/5 rounded-2xl p-4 flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-primary text-sm shrink-0">
-                    HE
+
+                {loadingProfile && !profile ? (
+                  <div className="bg-card border border-white/5 rounded-2xl p-4 flex items-center justify-center py-8">
+                    <Loader2 size={18} className="animate-spin text-gray-500" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-primary text-sm truncate">Heshika</p>
-                    <p className="text-gray-500 text-xs truncate">heshika@college.edu</p>
+                ) : (
+                  <div className="bg-card border border-white/5 rounded-2xl p-4 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="relative shrink-0">
+                        <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center text-primary text-sm overflow-hidden">
+                          {profile?.avatarUrl ? (
+                            <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            initials
+                          )}
+                        </div>
+                        <label
+                          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary text-ink flex items-center justify-center cursor-pointer hover:bg-white transition-colors"
+                          aria-label="Change avatar"
+                        >
+                          {avatarUploading ? (
+                            <Loader2 size={11} className="animate-spin" />
+                          ) : (
+                            <Camera size={11} />
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={avatarUploading}
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) handleAvatarChange(e.target.files[0]);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-primary text-sm truncate">{profile?.name || 'You'}</p>
+                        <p className="text-gray-500 text-xs truncate">{profile?.email ?? user?.email}</p>
+                      </div>
+                      {profile?.avatarUrl && (
+                        <button
+                          onClick={handleAvatarRemove}
+                          disabled={avatarUploading}
+                          className="text-gray-500 hover:text-red-400 transition-colors shrink-0 disabled:opacity-40"
+                          aria-label="Remove avatar"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                    {avatarError && <p className="text-red-400 text-xs">{avatarError}</p>}
+
+                    <div className="space-y-3 pt-1">
+                      <div>
+                        <label className="text-[11px] text-gray-500 block mb-1">Display Name</label>
+                        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-gray-500 block mb-1">Username</label>
+                        <input value={username} onChange={(e) => setUsername(e.target.value)} maxLength={30} placeholder="username" className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-gray-500 block mb-1">Role</label>
+                        <input value={role} onChange={(e) => setRole(e.target.value)} maxLength={40} placeholder="e.g. Frontend Dev" className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-gray-500 block mb-1">Bio</label>
+                        <textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={160} rows={2} className={`${fieldClass} resize-none`} />
+                      </div>
+                    </div>
+
+                    {saveError && <p className="text-red-400 text-xs">{saveError}</p>}
+
+                    {isDirty && (
+                      <button
+                        onClick={handleSaveProfile}
+                        disabled={saving}
+                        className="w-full flex items-center justify-center gap-1.5 bg-primary text-ink rounded-lg py-2 text-xs font-medium hover:bg-white transition-colors disabled:opacity-50"
+                      >
+                        {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} /> : null}
+                        {saving ? 'Saving...' : saved ? 'Saved' : 'Save changes'}
+                      </button>
+                    )}
                   </div>
-                  <button
-                    className="text-gray-500 hover:text-primary transition-colors shrink-0"
-                    aria-label="Edit profile"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                </div>
+                )}
               </div>
 
               {/* Notifications */}
@@ -97,7 +278,7 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
                 </div>
                 <div className="bg-card border border-white/5 rounded-2xl p-4 flex items-center justify-between">
                   <span className="text-sm text-primary/90">Push notifications</span>
-                  <Toggle enabled={notifications} onChange={() => setNotifications((v) => !v)} />
+                  <Toggle enabled={profile?.notificationsEnabled ?? true} onChange={handleNotificationsToggle} />
                 </div>
               </div>
 

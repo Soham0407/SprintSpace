@@ -21,6 +21,25 @@ export interface Candidate {
   available: boolean;
 }
 
+export interface Profile {
+  id: string;
+  name: string;
+  email: string;
+  username: string | null;
+  bio: string | null;
+  role: string | null;
+  avatarUrl: string | null;
+  notificationsEnabled: boolean;
+}
+
+export interface UpdateProfileInput {
+  name?: string;
+  username?: string;
+  bio?: string;
+  role?: string;
+  notificationsEnabled?: boolean;
+}
+
 export interface ResourceItem {
   id: string;
   title: string;
