@@ -110,3 +110,29 @@ export async function getWorkspace(workspaceId?: string): Promise<WorkspaceData>
   if (error) throw new Error(error.message);
   return data as WorkspaceData;
 }
+
+export async function deleteWorkspace(workspaceId: string, competitionId?: string): Promise<void> {
+  if (!isSupabaseReady()) {
+    await mockDelay(null);
+    return;
+  }
+
+  // 1. Delete workspace (this cascades to kanban columns, tasks, timeline steps, and workspace members)
+  const { error: wsError } = await supabase
+    .from('workspaces')
+    .delete()
+    .eq('id', workspaceId);
+
+  if (wsError) throw new Error(wsError.message);
+
+  // 2. Delete the associated competition
+  if (competitionId) {
+    const { error: compError } = await supabase
+      .from('competitions')
+      .delete()
+      .eq('id', competitionId);
+    if (compError) {
+      console.warn("Could not delete competition:", compError.message);
+    }
+  }
+}
