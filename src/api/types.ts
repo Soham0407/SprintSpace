@@ -95,6 +95,9 @@ export interface TeamMember {
   name: string;
   role: string;
   progress: number;
+  //new
+  primarySkill?:string
+    interests?:string[]
 }
 
 export interface TimelineStep {

@@ -36,9 +36,10 @@ const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value:
 const WorkspacePage = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
+  const [memberSkills,setMemberSkills]=useState<Record<string,string>>({})
   const { data: ws, loading, error } =
   useAsyncData(() => getWorkspace(workspaceId!), [workspaceId]);
-
+  
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -47,6 +48,13 @@ const WorkspacePage = () => {
   const [archiveUrl, setArchiveUrl] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [kanban, setKanban] = useState<KanbanColumn[]>([]);
+  const [projectIdea,setProjectIdea]=useState("")
+const [plannerOpen,setPlannerOpen]=useState(true)
+const [isGenerating,setIsGenerating]=useState(false)
+const [generatedPlan,setGeneratedPlan]=useState(null)
+const [currentStep, setCurrentStep] = useState(1);
+const [selectedResources, setSelectedResources] = useState<string[]>([]);
+const [aiInstructions, setAiInstructions] = useState("");
 
   useEffect(() => {
     if (ws) setKanban(ws.kanban);
@@ -529,7 +537,27 @@ const WorkspacePage = () => {
       )}
         </>
       )}
-      <AskAIWidget />
+        <AskAIWidget
+open={plannerOpen}
+setOpen={setPlannerOpen}
+
+projectIdea={projectIdea}
+setProjectIdea={setProjectIdea}
+
+memberSkills={memberSkills}
+setMemberSkills={setMemberSkills}
+
+currentStep={currentStep}
+setCurrentStep={setCurrentStep}
+
+selectedResources={selectedResources}
+setSelectedResources={setSelectedResources}
+
+aiInstructions={aiInstructions}
+setAiInstructions={setAiInstructions}
+
+team={ws?.team ?? []}
+/>
     </div>
   );
 };
