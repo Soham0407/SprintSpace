@@ -1,13 +1,4 @@
--- ═══════════════════════════════════════════════════════════════════════════
---  Sprint-Space — Supabase Database Schema
---  Run this entire file in: Supabase Dashboard → SQL Editor → New Query
---  Order matters — run top to bottom.
--- ═══════════════════════════════════════════════════════════════════════════
 
-
--- ───────────────────────────────────────────────────────────────────────────
---  1. PROFILES  (extends auth.users)
--- ───────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS profiles (
   id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
@@ -42,9 +33,7 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
 
--- ───────────────────────────────────────────────────────────────────────────
 --  2. COMPETITIONS
--- ───────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS competitions (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   slug        TEXT UNIQUE NOT NULL,
@@ -64,9 +53,7 @@ CREATE INDEX IF NOT EXISTS idx_competitions_category ON competitions(category);
 CREATE INDEX IF NOT EXISTS idx_competitions_deadline  ON competitions(deadline);
 
 
--- ───────────────────────────────────────────────────────────────────────────
 --  3. CANDIDATES  (TeamMatch profiles)
--- ───────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS candidates (
   id          UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
   role_wanted TEXT NOT NULL,
@@ -80,9 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_candidates_available ON candidates(available);
 CREATE INDEX IF NOT EXISTS idx_candidates_role      ON candidates(role_wanted);
 
 
--- ───────────────────────────────────────────────────────────────────────────
 --  4. RESOURCES
--- ───────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS resource_sections (
   id         TEXT PRIMARY KEY,
   label      TEXT NOT NULL,
@@ -102,9 +87,7 @@ CREATE TABLE IF NOT EXISTS resource_items (
 CREATE INDEX IF NOT EXISTS idx_resource_items_section ON resource_items(section_id, sort_order);
 
 
--- ───────────────────────────────────────────────────────────────────────────
 --  5. ARCHIVE  (Shipped Projects)
--- ───────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS archive_projects (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name           TEXT NOT NULL,
@@ -120,9 +103,7 @@ CREATE TABLE IF NOT EXISTS archive_projects (
 CREATE INDEX IF NOT EXISTS idx_archive_result ON archive_projects(result);
 
 
--- ───────────────────────────────────────────────────────────────────────────
 --  6. WORKSPACES
--- ───────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS workspaces (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   competition_id    UUID REFERENCES competitions(id),
@@ -175,10 +156,7 @@ CREATE TABLE IF NOT EXISTS timeline_steps (
 
 CREATE INDEX IF NOT EXISTS idx_timeline_workspace ON timeline_steps(workspace_id, sort_order);
 
-
--- ───────────────────────────────────────────────────────────────────────────
 --  7. COUNTRY STATS  (Globe on landing page)
--- ───────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS country_stats (
   country_code TEXT PRIMARY KEY,
   country_name TEXT NOT NULL,
@@ -201,9 +179,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 
--- ───────────────────────────────────────────────────────────────────────────
 --  8. WORKSPACE RPC  (returns full WorkspaceData in one round-trip)
--- ───────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION get_workspace(workspace_id UUID)
 RETURNS JSON AS $$
 DECLARE

@@ -1,9 +1,3 @@
--- ═══════════════════════════════════════════════════════════════════════════
---  Resources Backend — Schema Updates
---  Run in: Supabase Dashboard → SQL Editor → New Query
---  Prerequisite: supabase/schema.sql has already been run once.
--- ═══════════════════════════════════════════════════════════════════════════
-
 -- 1. Create resources table
 CREATE TABLE IF NOT EXISTS resources (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

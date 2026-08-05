@@ -1,17 +1,10 @@
--- ═══════════════════════════════════════════════════════════════════════════
---  Settings & TeamMatch Sync — Schema Updates
---  Run in: Supabase Dashboard → SQL Editor → New Query
---  Prerequisite: supabase/schema.sql has already been run once.
--- ═══════════════════════════════════════════════════════════════════════════
-
--- 1. Ensure public.profiles table has the necessary settings columns
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS avatar_url TEXT,
   ADD COLUMN IF NOT EXISTS username TEXT UNIQUE,
   ADD COLUMN IF NOT EXISTS role TEXT,
   ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT TRUE;
 
--- 2. Create the function to automatically sync profiles to candidates table
+-- 1. Create the function to automatically sync profiles to candidates table
 CREATE OR REPLACE FUNCTION public.handle_profile_sync_to_candidates()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -33,13 +26,13 @@ BEGIN
 END;
 $$;
 
--- 3. Create the trigger on public.profiles
+-- 2. Create the trigger on public.profiles
 DROP TRIGGER IF EXISTS on_profile_sync_to_candidates ON public.profiles;
 CREATE TRIGGER on_profile_sync_to_candidates
   AFTER INSERT OR UPDATE OF name, bio, role ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.handle_profile_sync_to_candidates();
 
--- 4. Set up storage buckets & policies for avatars
+-- 3. Set up storage buckets & policies for avatars
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
 ON CONFLICT (id) DO NOTHING;
