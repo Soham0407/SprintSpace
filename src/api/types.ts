@@ -15,6 +15,8 @@ export interface Competition {
 export interface Candidate {
   id: string;
   name: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
   roleWanted: string;
   skills: string[];
   matchScore: number;

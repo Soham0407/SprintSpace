@@ -94,8 +94,12 @@ const MAX_MEMBERS = 4;
           {candidates.map((c) => (
             <SpotlightCard key={c.id} className="h-full flex flex-col" spotlightColor="rgba(255, 91, 46, 0.15)">
               <div className="flex items-start justify-between mb-4">
-                <div className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-primary text-sm">
-                  {c.name.split(' ').map((p) => p[0]).join('')}
+                <div className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-primary text-sm overflow-hidden">
+                  {c.avatarUrl ? (
+                    <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    c.name.split(' ').map((p) => p[0]).join('')
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${c.available ? 'bg-accent' : 'bg-gray-600'}`} />
@@ -104,7 +108,12 @@ const MAX_MEMBERS = 4;
               </div>
 
               <h3 className="text-primary text-base mb-0.5">{c.name}</h3>
-              <span className="text-xs text-gray-500 mb-4 block">Looking for: {c.roleWanted}</span>
+              <span className="text-xs text-gray-500 mb-2 block">Looking for: {c.roleWanted}</span>
+              {c.bio && (
+                <p className="text-xs text-gray-400 mb-4 line-clamp-2 italic">
+                  "{c.bio}"
+                </p>
+              )}
 
               <div className="flex flex-wrap gap-1.5 mb-6 flex-1">
                 {c.skills.map((s) => (
