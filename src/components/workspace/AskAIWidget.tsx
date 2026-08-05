@@ -7,7 +7,10 @@ import {
   X,
   Minus,
   ArrowRight,
+  Loader2,
+  RotateCcw,
 } from "lucide-react";
+import { generateRoadmap, type PlannerResponse } from "../../api/planner";
 
 type Props = {
   open: boolean;
@@ -33,6 +36,9 @@ setAiInstructions:Dispatch<SetStateAction<string>>;
     name: string;
     role: string;
   }[];
+
+  deadline: string;
+  competitionName: string;
 };
 
 export default function AskAIWidget({
@@ -49,8 +55,34 @@ export default function AskAIWidget({
   aiInstructions,
   setAiInstructions,
   team,
+  deadline,
+  competitionName,
 }: Props) {
-  
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [roadmap, setRoadmap] = useState<PlannerResponse | null>(null);
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setGenerateError(null);
+    try {
+      const result = await generateRoadmap({
+        competition: competitionName,
+        projectIdea,
+        deadline,
+        aiInstructions,
+        team: team.map((m) => ({
+          name: m.name,
+          skills: memberSkills[m.id] ? [memberSkills[m.id]] : [],
+        })),
+      });
+      setRoadmap(result);
+    } catch (e) {
+      setGenerateError((e as Error).message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return createPortal(
     <>
@@ -470,50 +502,65 @@ Next
 
                   {/* STEP 5 */}
 
-{currentStep===5 && (
+{currentStep===5 && !roadmap && (
 
 <div className="h-full flex flex-col items-center justify-center text-center">
 
 <Sparkles
 size={44}
-className="text-accent mb-6"
+className={isGenerating ? "text-accent mb-6 animate-pulse" : "text-accent mb-6"}
 />
 
 <h2 className="text-primary text-2xl font-semibold mb-3">
-Ready to Generate
+{isGenerating ? "Generating your roadmap..." : "Ready to Generate"}
 </h2>
 
+{!isGenerating && (
 <p className="text-gray-500 max-w-lg mb-8">
 
 AI will create:
 
 <br/>
 
-• Project Phases
+- Project Phases
 
 <br/>
 
-• Daily subtasks
+- Daily subtasks
 
 <br/>
 
-• Member-wise task assignments
+- Member-wise task assignments
 
 <br/>
 
-• Kanban columns
+- Kanban columns
 
 <br/>
 
-• Smart roadmap
+- Smart roadmap
 
 </p>
+)}
+
+{isGenerating && (
+<p className="text-gray-500 max-w-lg mb-8">
+This usually takes a few seconds.
+</p>
+)}
+
+{generateError && (
+<p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3 mb-6 max-w-lg">
+{generateError}
+</p>
+)}
 
 <div className="flex gap-4">
 
 <button
+disabled={isGenerating}
 onClick={()=>setCurrentStep(4)}
-className="px-6 py-3 rounded-xl border border-white/10"
+className="px-6 py-3 rounded-xl border border-white/10 disabled:opacity-40"
 >
 
 Back
@@ -521,13 +568,276 @@ Back
 </button>
 
 <button
-onClick={()=>setCurrentStep(5)}
-className="px-8 py-4 rounded-2xl bg-primary text-ink font-semibold"
+disabled={isGenerating}
+onClick={handleGenerate}
+className="px-8 py-4 rounded-2xl bg-primary text-ink font-semibold flex items-center gap-2 disabled:opacity-60"
 >
 
-Generate AI Roadmap
+{isGenerating ? (
+<>
+<Loader2 size={18} className="animate-spin" />
+Generating...
+</>
+) : (
+"Generate AI Roadmap"
+)}
 
 </button>
+
+</div>
+
+</div>
+
+)}
+
+{currentStep===5 && roadmap && (
+
+<div className="space-y-6">
+
+<div className="flex items-center justify-between">
+
+<div>
+<h2 className="text-primary text-xl font-semibold">
+Review Your Roadmap
+</h2>
+<p className="text-gray-500 text-sm mt-1">
+Check the plan below. Saving to your workspace comes next.
+</p>
+</div>
+
+<button
+onClick={() => setRoadmap(null)}
+className="flex items-center gap-2 text-sm text-gray-400 hover:text-primary px-4 py-2 rounded-xl border border-white/10"
+>
+<RotateCcw size={14} />
+Regenerate
+</button>
+
+</div>
+
+<div className="space-y-4">
+
+{roadmap.phases.map((phase, pIdx) => (
+<div key={pIdx} className="rounded-2xl bg-surface border border-white/10 p-5">
+
+<input
+  value={phase.title}
+  onChange={(e) => {
+
+    if (!roadmap) return;
+
+    const updated = structuredClone(roadmap);
+
+    updated.phases[pIdx].title = e.target.value;
+
+    setRoadmap(updated);
+
+  }}
+  className="w-full rounded-xl bg-card border border-white/10 px-4 py-3 text-primary font-semibold mb-4"
+/>
+<div className="flex justify-end mb-4">
+
+  <button
+    onClick={() => {
+
+      if (!roadmap) return;
+
+      const updated = structuredClone(roadmap);
+
+      updated.phases.splice(pIdx, 1);
+
+      setRoadmap(updated);
+
+    }}
+    className="text-red-400 hover:text-red-300 text-sm"
+  >
+    Delete Phase
+  </button>
+
+</div>
+
+<div className="space-y-2">
+
+{phase.tasks.map((task, taskIndex) => (
+
+
+<div
+  key={task.id}
+  className="rounded-xl bg-card border border-white/10 p-4 space-y-4"
+>
+
+  {/* Task Title */}
+
+  <div>
+
+    <label className="text-xs text-gray-500 block mb-1">
+      Task
+    </label>
+
+    <input
+      value={task.title}
+      onChange={(e)=>{
+
+        if(!roadmap) return;
+
+        const updated={...roadmap};
+
+        updated.phases[pIdx].tasks[taskIndex].title=e.target.value;
+
+        setRoadmap({...updated});
+
+      }}
+      className="w-full rounded-xl bg-surface border border-white/10 px-3 py-2 text-primary"
+    />
+
+  </div>
+
+  <div className="grid grid-cols-2 gap-4">
+
+    {/* Day */}
+
+    <div>
+
+      <label className="text-xs text-gray-500 block mb-1">
+        Day
+      </label>
+
+      <input
+        type="number"
+        value={task.day}
+        onChange={(e)=>{
+
+          if(!roadmap) return;
+
+          const updated={...roadmap};
+
+          updated.phases[pIdx].tasks[taskIndex].day=Number(e.target.value);
+
+          setRoadmap({...updated});
+
+        }}
+        className="w-full rounded-xl bg-surface border border-white/10 px-3 py-2"
+      />
+
+    </div>
+
+    {/* Assigned */}
+
+    <div>
+
+      <label className="text-xs text-gray-500 block mb-1">
+        Assigned To
+      </label>
+
+      <select
+        value={task.assigned_to}
+        onChange={(e)=>{
+
+          if(!roadmap) return;
+
+          const updated={...roadmap};
+
+          updated.phases[pIdx].tasks[taskIndex].assigned_to=e.target.value;
+
+          setRoadmap({...updated});
+
+        }}
+        className="w-full rounded-xl bg-surface border border-white/10 px-3 py-2"
+      >
+
+        {team.map(member=>(
+
+          <option
+            key={member.id}
+            value={member.name}
+          >
+            {member.name}
+          </option>
+
+        ))}
+
+      </select>
+
+    </div>
+
+  </div>
+
+</div>
+
+))}
+
+</div>
+
+<div className="mt-5">
+
+  <button
+    onClick={() => {
+
+      if (!roadmap) return;
+
+      const updated = structuredClone(roadmap);
+
+      updated.phases[pIdx].tasks.push({
+        id: crypto.randomUUID(),
+        title: "New Task",
+        day: 1,
+        assigned_to: "",
+        skill_required: "",
+      });
+
+      setRoadmap(updated);
+
+    }}
+    className="text-accent text-sm hover:underline"
+  >
+    + Add Task
+  </button>
+
+</div>
+
+</div>
+))}
+
+<div className="pt-6">
+
+  <button
+    onClick={() => {
+
+      if (!roadmap) return;
+
+      const updated = structuredClone(roadmap);
+
+      updated.phases.push({
+        title: `Phase ${updated.phases.length + 1}`,
+        tasks: [],
+      });
+
+      setRoadmap(updated);
+
+    }}
+    className="px-5 py-3 rounded-xl border border-white/10 hover:border-accent"
+  >
+    + Add Phase
+  </button>
+
+</div>
+
+</div>
+
+<div className="flex justify-end gap-4 pt-8">
+
+  <button
+    onClick={() => setRoadmap(null)}
+    className="px-5 py-3 rounded-xl border border-white/10"
+  >
+    Regenerate
+  </button>
+
+  <button
+    className="px-8 py-3 rounded-xl bg-primary text-ink font-semibold"
+  >
+    Accept Roadmap
+  </button>
 
 </div>
 

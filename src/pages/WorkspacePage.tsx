@@ -556,7 +556,9 @@ setSelectedResources={setSelectedResources}
 aiInstructions={aiInstructions}
 setAiInstructions={setAiInstructions}
 
-team={ws?.team ?? []}
+ team={ws?.team ?? []}
+  deadline={ws?.deadline ?? ""}
+  competitionName={ws?.competitionName ?? ""}
 />
     </div>
   );

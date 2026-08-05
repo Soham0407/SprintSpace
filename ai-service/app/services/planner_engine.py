@@ -1,26 +1,24 @@
 from app.prompts.planner_prompt import build_planner_prompt
 from app.services.gemini_client import client
 from app.core.config import settings
+from app.schemas.planner import PlannerResponse
 import json
 
-async def generate_plan(data):
-    print("Step 1: Request received")
-
+async def generate_plan(data) -> PlannerResponse:
     prompt = build_planner_prompt(data)
-    print("Step 2: Prompt built")
 
     response = client.models.generate_content(
         model=settings.GEMINI_MODEL,
         contents=prompt
     )
 
-    print("Step 3: Gemini responded")
+    text = response.text.replace("```json", "").replace("```", "").strip()
 
-    text = response.text
+    try:
+        raw = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"AI returned invalid JSON: {e}")
 
-    # Remove markdown code fences if present
-    text = text.replace("```json", "").replace("```", "").strip()
-
-    plan = json.loads(text)
-
-    return plan
+    # Raises a pydantic ValidationError (→ 422) if the shape doesn't match —
+    # this is the actual validation step, not just a hopeful json.loads().
+    return PlannerResponse(**raw)
