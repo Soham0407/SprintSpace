@@ -19,26 +19,74 @@ const MOCK_WORKSPACE: WorkspaceData = {
       id: 'todo',
       label: 'To Do',
       tasks: [
-        { id: 't1', title: 'Landing Page' },
-        { id: 't2', title: 'Presentation' },
-        { id: 't3', title: 'Testing' },
-      ],
+  {
+    id: 't1',
+    title: 'Landing Page',
+    assignedTo: null,
+    dueDate: null,
+    completedAt: null,
+  },
+  {
+    id: 't2',
+    title: 'Presentation',
+    assignedTo: null,
+    dueDate: null,
+    completedAt: null,
+  },
+  {
+    id: 't3',
+    title: 'Testing',
+    assignedTo: null,
+    dueDate: null,
+    completedAt: null,
+  },
+],
     },
     {
       id: 'in-progress',
       label: 'In Progress',
       tasks: [
-        { id: 't4', title: 'Authentication' },
-        { id: 't5', title: 'Dashboard' },
-        { id: 't6', title: 'AI Context Setup' },
+        {
+  id: 't4',
+  title: 'Authentication',
+  assignedTo: null,
+  dueDate: null,
+  completedAt: null,
+},
+{
+  id: 't5',
+  title: 'Dashboard',
+  assignedTo: null,
+  dueDate: null,
+  completedAt: null,
+},
+{
+  id: 't6',
+  title: 'AI Context Setup',
+  assignedTo: null,
+  dueDate: null,
+  completedAt: null,
+},
       ],
     },
     {
       id: 'done',
       label: 'Done',
       tasks: [
-        { id: 't7', title: 'Database' },
-        { id: 't8', title: 'Login' },
+        {
+  id: 't7',
+  title: 'Database',
+  assignedTo: null,
+  dueDate: null,
+  completedAt: null,
+},
+{
+  id: 't8',
+  title: 'Login',
+  assignedTo: null,
+  dueDate: null,
+  completedAt: null,
+},
       ],
     },
   ],
@@ -135,4 +183,42 @@ export async function deleteWorkspace(workspaceId: string, competitionId?: strin
       console.warn("Could not delete competition:", compError.message);
     }
   }
+}
+
+/** Toggles a task's completion — moves it to the 'done' column and stamps
+    completed_at, or clears both when un-completing. Mock mode is a no-op
+    since MOCK_WORKSPACE has no live task store yet. */
+export async function toggleTaskComplete(
+  taskId: string,
+  completed: boolean
+): Promise<void> {
+  if (!isSupabaseReady()) {
+    console.warn('[toggleTaskComplete] Supabase not configured — no-op in mock mode.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('kanban_tasks')
+    .update({
+      column_id: completed ? 'done' : 'todo',
+      completed_at: completed ? new Date().toISOString() : null,
+    })
+    .eq('id', taskId);
+
+  if (error) throw new Error(error.message);
+}
+
+/** Assigns (or unassigns, pass null) a task to a workspace member. */
+export async function assignTask(taskId: string, memberId: string | null): Promise<void> {
+  if (!isSupabaseReady()) {
+    console.warn('[assignTask] Supabase not configured — no-op in mock mode.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('kanban_tasks')
+    .update({ assigned_to: memberId })
+    .eq('id', taskId);
+
+  if (error) throw new Error(error.message);
 }

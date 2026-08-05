@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ListChecks, Users, MessageCircle, FolderOpen, Flag, ArrowLeft, Trash2, Loader2 } from 'lucide-react';
@@ -6,7 +6,8 @@ import CountUp from '../components/reactbits/CountUp';
 import SpotlightCard from '../components/reactbits/SpotlightCard';
 import BlackHoleCountdown from '../components/deadline/BlackHoleCountdown';
 import { useAsyncData } from '../hooks/useAsyncData';
-import { getWorkspace, deleteWorkspace } from '../api/workspace';
+import { getWorkspace, deleteWorkspace, toggleTaskComplete, assignTask } from '../api/workspace';
+import type { KanbanColumn } from '../api/types';
 import { createArchive } from '../api/archive';
 import AskAIWidget from '../components/workspace/AskAIWidget';
 import { useParams, useNavigate } from "react-router-dom";
@@ -45,6 +46,78 @@ const WorkspacePage = () => {
   const [archiveStack, setArchiveStack] = useState('');
   const [archiveUrl, setArchiveUrl] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [kanban, setKanban] = useState<KanbanColumn[]>([]);
+
+  useEffect(() => {
+    if (ws) setKanban(ws.kanban);
+  }, [ws]);
+  const memberProgress = useMemo(() => {
+    const counts = new Map<string, { total: number; done: number }>();
+
+    kanban.forEach((column) => {
+      column.tasks.forEach((task) => {
+        if (!task.assignedTo) return;
+        const entry = counts.get(task.assignedTo) ?? { total: 0, done: 0 };
+        entry.total += 1;
+        if (column.id === 'done') entry.done += 1;
+        counts.set(task.assignedTo, entry);
+      });
+    });
+
+    const result = new Map<string, number>();
+    counts.forEach((v, memberId) => {
+      result.set(memberId, v.total === 0 ? 0 : Math.round((v.done / v.total) * 100));
+    });
+    return result;
+  }, [kanban]);
+
+  const handleToggleTask = async (taskId: string, currentColumnId: string) => {
+    const completing = currentColumnId !== 'done';
+
+    // Optimistic local move: pull task out of its current column, push into target column
+    setKanban((prev) => {
+      let movedTask: KanbanColumn['tasks'][number] | undefined;
+      const withoutTask = prev.map((col) => {
+        const found = col.tasks.find((t) => t.id === taskId);
+        if (found) movedTask = found;
+        return { ...col, tasks: col.tasks.filter((t) => t.id !== taskId) };
+      });
+      if (!movedTask) return prev;
+
+      const targetColumnId = completing ? 'done' : 'todo';
+      const updatedTask = {
+        ...movedTask,
+        completedAt: completing ? new Date().toISOString() : null,
+      };
+
+      return withoutTask.map((col) =>
+        col.id === targetColumnId ? { ...col, tasks: [...col.tasks, updatedTask] } : col
+      );
+    });
+
+    try {
+      await toggleTaskComplete(taskId, completing);
+    } catch (e) {
+      setActionError((e as Error).message);
+    }
+  };
+
+  const handleAssignTask = async (taskId: string, memberId: string) => {
+    const resolvedId = memberId === '' ? null : memberId;
+
+    setKanban((prev) =>
+      prev.map((col) => ({
+        ...col,
+        tasks: col.tasks.map((t) => (t.id === taskId ? { ...t, assignedTo: resolvedId } : t)),
+      }))
+    );
+
+    try {
+      await assignTask(taskId, resolvedId);
+    } catch (e) {
+      setActionError((e as Error).message);
+    }
+  };
 
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to permanently delete this workspace and its linked competition? This action cannot be undone.")) {
@@ -175,21 +248,56 @@ const WorkspacePage = () => {
                 <h2 className="text-primary text-lg">Smart Kanban</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {ws.kanban.map((column) => (
+                {kanban.map((column) => (
                   <div key={column.id} className="bg-card rounded-2xl p-4">
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-sm text-gray-400">{column.label}</span>
                       <span className="text-xs text-gray-600">{column.tasks.length}</span>
                     </div>
                     <div className="space-y-2">
-                      {column.tasks.map((task) => (
-                        <div
-                          key={task.id}
-                          className="bg-surface rounded-xl px-4 py-3 text-sm text-primary/90 border border-white/5"
-                        >
-                          {task.title}
-                        </div>
-                      ))}
+                      {column.tasks.map((task) => {
+                        const assignedMember = ws.team.find((m) => m.id === task.assignedTo);
+                        return (
+                          <div
+                            key={task.id}
+                            className="bg-surface rounded-xl px-4 py-3 border border-white/5"
+                          >
+                            <div className="flex items-start gap-2.5 mb-2">
+                              <input
+                                type="checkbox"
+                                checked={column.id === 'done'}
+                                onChange={() => handleToggleTask(task.id, column.id)}
+                                className="mt-0.5 accent-accent shrink-0"
+                              />
+                              <span
+                                className={`text-sm ${
+                                  column.id === 'done' ? 'text-gray-500 line-through' : 'text-primary/90'
+                                }`}
+                              >
+                                {task.title}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 pl-6">
+                              <select
+                                value={task.assignedTo ?? ''}
+                                onChange={(e) => handleAssignTask(task.id, e.target.value)}
+                                className="text-[11px] bg-transparent border border-white/10 rounded-full px-2 py-1 text-gray-400 focus:outline-none focus:border-accent"
+                              >
+                                <option value="">Unassigned</option>
+                                {ws.team.map((m) => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.name}
+                                  </option>
+                                ))}
+                              </select>
+                              {assignedMember && (
+                                <span className="text-[10px] text-accent">{assignedMember.name}</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -202,14 +310,16 @@ const WorkspacePage = () => {
               <div>
                 <h2 className="text-primary text-lg mb-6">Team Dashboard</h2>
                 <div className="space-y-5">
-                  {ws.team.map((member) => (
-                    <ProgressBar
-                      key={member.id}
-                      label={member.name}
-                      sub={`${member.role} · ${member.progress}%`}
-                      value={member.progress}
-                    />
-                  ))}
+                  {ws.team.map((member) => {
+                    const hasTasks = memberProgress.has(member.id);
+                    const value = hasTasks ? memberProgress.get(member.id)! : member.progress;
+                    const sub = hasTasks
+                      ? `${member.role} · ${value}% of assigned tasks`
+                      : `${member.role} · No tasks assigned`;
+                    return (
+                      <ProgressBar key={member.id} label={member.name} sub={sub} value={value} />
+                    );
+                  })}
                 </div>
               </div>
 

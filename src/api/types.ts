@@ -79,6 +79,9 @@ export interface CreateArchiveInput {
 export interface KanbanTask {
   id: string;
   title: string;
+  assignedTo: string | null;
+  dueDate: string | null;
+  completedAt: string | null;
 }
 
 export interface KanbanColumn {
