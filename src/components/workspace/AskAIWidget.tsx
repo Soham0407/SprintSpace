@@ -11,6 +11,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { generateRoadmap, type PlannerResponse } from "../../api/planner";
+import { saveRoadmap } from "../../api/workspace";
 
 type Props = {
   open: boolean;
@@ -39,6 +40,8 @@ setAiInstructions:Dispatch<SetStateAction<string>>;
 
   deadline: string;
   competitionName: string;
+  workspaceId: string;
+refreshWorkspace: () => Promise<void>;
 };
 
 export default function AskAIWidget({
@@ -57,6 +60,8 @@ export default function AskAIWidget({
   team,
   deadline,
   competitionName,
+  workspaceId,
+  refreshWorkspace
 }: Props) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -83,6 +88,30 @@ export default function AskAIWidget({
       setIsGenerating(false);
     }
   };
+  const handleAcceptRoadmap = async () => {
+
+  if (!roadmap) return;
+
+  try {
+
+    await saveRoadmap(
+      workspaceId,
+      roadmap
+    );
+
+    await refreshWorkspace();
+
+    setOpen(false);
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert("Failed to save roadmap.");
+
+  }
+
+};
 
   return createPortal(
     <>
@@ -315,7 +344,7 @@ Choose Files
                 {selectedResources.length===0 && (
 
                 <p className="text-sm text-gray-500">
-                  No resources selected.
+                  No resources selected.You can continue without uploading anything.
                 </p>
 
           )}
@@ -341,12 +370,42 @@ Choose Files
 
         </div>
       ))}
+      
 
     </div>
+    <div className="flex justify-between pt-8">
+
+  <button
+    onClick={() => setCurrentStep(1)}
+    className="px-5 py-3 rounded-xl border border-white/10"
+  >
+    Back
+  </button>
+
+  <div className="flex gap-3">
+
+    <button
+      onClick={() => setCurrentStep(3)}
+      className="px-5 py-3 rounded-xl border border-white/10 text-gray-300 hover:border-accent hover:text-primary transition"
+    >
+      Skip for Now
+    </button>
+
+    <button
+      onClick={() => setCurrentStep(3)}
+      className="px-6 py-3 rounded-xl bg-primary text-ink font-semibold"
+    >
+      Continue
+    </button>
 
   </div>
 
 </div>
+
+  </div>
+
+</div>
+
 
 )}
 
@@ -834,6 +893,7 @@ Regenerate
   </button>
 
   <button
+  onClick={handleAcceptRoadmap}
     className="px-8 py-3 rounded-xl bg-primary text-ink font-semibold"
   >
     Accept Roadmap

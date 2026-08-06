@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { mockDelay } from './mockClient';
 import type { WorkspaceData } from './types';
+import type { PlannerResponse } from "./planner";
 
 function isSupabaseReady() {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -221,4 +222,67 @@ export async function assignTask(taskId: string, memberId: string | null): Promi
     .eq('id', taskId);
 
   if (error) throw new Error(error.message);
+}
+export async function saveRoadmap(
+  workspaceId: string,
+  roadmap: PlannerResponse
+) {
+  if (!isSupabaseReady()) {
+    console.warn("Mock mode");
+    return;
+  }
+
+  // Remove old AI tasks
+  const { error: deleteError } = await supabase
+    .from("kanban_tasks")
+    .delete()
+    .eq("workspace_id", workspaceId);
+
+  if (deleteError) throw deleteError;
+
+  // Get workspace members
+  const { data: members, error: memberError } = await supabase
+    .from("workspace_members")
+    .select("id,name")
+    .eq("workspace_id", workspaceId);
+
+  if (memberError) throw memberError;
+
+  let order = 1;
+
+  for (const phase of roadmap.phases) {
+
+    for (const task of phase.tasks) {
+
+      const member = members?.find(
+        m => m.name === task.assigned_to
+      );
+
+      const { error } = await supabase
+        .from("kanban_tasks")
+        .insert({
+
+          workspace_id: workspaceId,
+
+          column_id: "todo",
+
+          title: task.title,
+
+          sort_order: order++,
+
+          assigned_to: member?.id ?? null,
+
+          due_date: null,
+
+          completed_at: null,
+
+          phase: phase.title
+
+        });
+        if (error) throw error;
+
+    }
+
+  }
+
 }

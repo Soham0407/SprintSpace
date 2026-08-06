@@ -37,7 +37,7 @@ const WorkspacePage = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
   const [memberSkills,setMemberSkills]=useState<Record<string,string>>({})
-  const { data: ws, loading, error } =
+  const { data: ws, loading, error, refresh} =
   useAsyncData(() => getWorkspace(workspaceId!), [workspaceId]);
   
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
@@ -559,6 +559,9 @@ setAiInstructions={setAiInstructions}
  team={ws?.team ?? []}
   deadline={ws?.deadline ?? ""}
   competitionName={ws?.competitionName ?? ""}
+
+  workspaceId={workspaceId!}
+refreshWorkspace={refresh}
 />
     </div>
   );
