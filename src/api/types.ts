@@ -47,6 +47,7 @@ export interface Invite {
   workspaceId: string;
   competitionName: string;
   invitedByName: string;
+  description: string | null;
   status: 'pending' | 'accepted' | 'declined';
   createdAt: string;
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Bell, Palette, LogOut, Camera, Trash2, Loader2, Check, Mail } from 'lucide-react';
+import { X, User, Bell, Palette, LogOut, Camera, Trash2, Loader2, Check, Mail, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getProfile, updateProfile, uploadAvatar, removeAvatar } from '../../api/profile';
 import { getMyInvites, acceptInvite, declineInvite } from '../../api/invites';
@@ -33,6 +34,7 @@ const fieldClass =
 
 const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
@@ -55,6 +57,8 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
   const [loadingInvites, setLoadingInvites] = useState(false);
   const [inviteActionId, setInviteActionId] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [confirmDeclineId, setConfirmDeclineId] = useState<string | null>(null);
+  const [expandedInviteId, setExpandedInviteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !user?.id) return;
@@ -74,9 +78,14 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
   useEffect(() => {
     if (!open || !user?.id) return;
     setLoadingInvites(true);
+    setInviteError(null);
     getMyInvites()
       .then(setInvites)
-      .catch(() => setInvites([]))
+      .catch((e) => {
+        console.error('[getMyInvites]', e);
+        setInviteError((e as Error).message);
+        setInvites([]);
+      })
       .finally(() => setLoadingInvites(false));
   }, [open, user?.id]);
 
@@ -150,12 +159,15 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
     }
   };
 
-  const handleAcceptInvite = async (id: string) => {
+  const handleAcceptInvite = async (id: string, competitionName: string, workspaceId: string) => {
+    if (!window.confirm(`Join "${competitionName}"? You'll be added as a team member.`)) return;
     setInviteActionId(id);
     setInviteError(null);
     try {
       await acceptInvite(id);
       setInvites((prev) => prev.filter((i) => i.id !== id));
+      onClose();
+      navigate(`/workspace/${workspaceId}`);
     } catch (e) {
       setInviteError((e as Error).message);
     } finally {
@@ -173,6 +185,7 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
       setInviteError((e as Error).message);
     } finally {
       setInviteActionId(null);
+      setConfirmDeclineId(null);
     }
   };
 
@@ -334,36 +347,138 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
                     <p className="text-gray-500 text-xs">No pending invites.</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {invites.map((invite) => (
-                      <div key={invite.id} className="bg-card border border-white/5 rounded-2xl p-4">
-                        <p className="text-primary text-sm mb-0.5">{invite.competitionName}</p>
-                        <p className="text-gray-500 text-xs mb-3">Invited by {invite.invitedByName}</p>
-                        <div className="flex gap-2">
+                  <AnimatePresence>
+                    {invites.map((invite) => {
+                      const isExpanded = expandedInviteId === invite.id;
+                      return (
+                        <motion.div
+                          key={invite.id}
+                          layout
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.97 }}
+                          className="bg-card border border-white/5 rounded-2xl overflow-hidden mb-2"
+                        >
+                          {/* Header row — always visible, click to expand */}
                           <button
-                            onClick={() => handleAcceptInvite(invite.id)}
-                            disabled={inviteActionId === invite.id}
-                            className="flex-1 flex items-center justify-center gap-1.5 bg-primary text-ink rounded-lg py-2 text-xs font-medium hover:bg-white transition-colors disabled:opacity-50"
+                            onClick={() => setExpandedInviteId(isExpanded ? null : invite.id)}
+                            className="w-full flex items-start gap-3 p-4 text-left hover:bg-white/[0.02] transition-colors"
                           >
-                            {inviteActionId === invite.id ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <Check size={12} />
+                            <div className="w-8 h-8 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shrink-0 mt-0.5">
+                              <Mail size={13} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-primary text-sm font-medium truncate">{invite.competitionName}</p>
+                              <p className="text-gray-500 text-xs mt-0.5">
+                                Invited by <span className="text-gray-400">{invite.invitedByName}</span>
+                              </p>
+                            </div>
+                            <span className="text-gray-600 shrink-0 mt-1">
+                              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            </span>
+                          </button>
+
+                          {/* Expandable detail panel */}
+                          <AnimatePresence initial={false}>
+                            {isExpanded && (
+                              <motion.div
+                                key="details"
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                                className="overflow-hidden"
+                              >
+                                <div className="px-4 pb-4 space-y-3 border-t border-white/5 pt-3">
+                                  {/* Project details */}
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[11px] text-gray-500 uppercase tracking-wider">Project</span>
+                                    </div>
+                                    <p className="text-primary text-sm font-medium">{invite.competitionName}</p>
+                                    <p className="text-gray-500 text-xs">
+                                      Owner: <span className="text-gray-400">{invite.invitedByName}</span>
+                                    </p>
+                                    {invite.description && (
+                                      <p className="text-gray-400 text-xs leading-relaxed bg-white/[0.03] rounded-lg p-2.5 border border-white/5">
+                                        {invite.description}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {/* Decline confirmation or action buttons */}
+                                  <AnimatePresence mode="wait">
+                                    {confirmDeclineId === invite.id ? (
+                                      <motion.div
+                                        key="confirm"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                      >
+                                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                                          <p className="text-red-300 text-xs mb-2.5">Decline this invitation? This cannot be undone.</p>
+                                          <div className="flex gap-2">
+                                            <button
+                                              onClick={() => handleDeclineInvite(invite.id)}
+                                              disabled={inviteActionId === invite.id}
+                                              className="flex-1 flex items-center justify-center gap-1.5 bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg py-1.5 text-xs font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                                            >
+                                              {inviteActionId === invite.id ? (
+                                                <Loader2 size={11} className="animate-spin" />
+                                              ) : (
+                                                <X size={11} />
+                                              )}
+                                              Yes, decline
+                                            </button>
+                                            <button
+                                              onClick={() => setConfirmDeclineId(null)}
+                                              disabled={inviteActionId === invite.id}
+                                              className="flex-1 flex items-center justify-center border border-white/10 text-gray-400 rounded-lg py-1.5 text-xs font-medium hover:text-primary hover:border-white/30 transition-colors disabled:opacity-50"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </motion.div>
+                                    ) : (
+                                      <motion.div
+                                        key="actions"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="flex gap-2"
+                                      >
+                                        <button
+                                          onClick={() => handleAcceptInvite(invite.id, invite.competitionName, invite.workspaceId)}
+                                          disabled={inviteActionId === invite.id}
+                                          className="flex-1 flex items-center justify-center gap-1.5 bg-primary text-ink rounded-lg py-2 text-xs font-medium hover:bg-white transition-colors disabled:opacity-50"
+                                        >
+                                          {inviteActionId === invite.id ? (
+                                            <Loader2 size={12} className="animate-spin" />
+                                          ) : (
+                                            <Check size={12} />
+                                          )}
+                                          Accept & Open
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmDeclineId(invite.id)}
+                                          disabled={inviteActionId === invite.id}
+                                          className="flex-1 flex items-center justify-center gap-1.5 border border-white/10 text-gray-400 rounded-lg py-2 text-xs font-medium hover:text-primary hover:border-white/30 transition-colors disabled:opacity-50"
+                                        >
+                                          <X size={12} />
+                                          Decline
+                                        </button>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              </motion.div>
                             )}
-                            Accept
-                          </button>
-                          <button
-                            onClick={() => handleDeclineInvite(invite.id)}
-                            disabled={inviteActionId === invite.id}
-                            className="flex-1 flex items-center justify-center gap-1.5 border border-white/10 text-gray-400 rounded-lg py-2 text-xs font-medium hover:text-primary hover:border-white/30 transition-colors disabled:opacity-50"
-                          >
-                            <X size={12} />
-                            Decline
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                          </AnimatePresence>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
                 )}
 
                 {inviteError && <p className="text-red-400 text-xs mt-2">{inviteError}</p>}

@@ -12,11 +12,31 @@ const TeamMatchPage = () => {
   const { data: candidates, loading } = useAsyncData(getCandidates, []);
   const navigate = useNavigate();
   const location = useLocation();
-  const alreadyInvited = location.state?.invitedMembers??[];
 
-const [invited, setInvited] = useState<string[]>(alreadyInvited.map((m:any)=>m.id));
+  // Full form state passed from NewCompetitionPage so we can round-trip it back
+  const alreadyInvited = location.state?.invitedMembers ?? [];
+  const formState = {
+    competitionName: location.state?.competitionName ?? "",
+    startDate:       location.state?.startDate ?? "",
+    endDate:         location.state?.endDate ?? "",
+    description:     location.state?.description ?? "",
+    type:            location.state?.type ?? "hackathon",
+    maxMembers:      location.state?.maxMembers ?? 4,
+    soloMode:        location.state?.soloMode ?? false,
+  };
 
-const MAX_MEMBERS = 4; 
+  const [invited, setInvited] = useState<string[]>(alreadyInvited.map((m: any) => m.id));
+  const MAX_MEMBERS = formState.maxMembers;
+
+  const handleFinish = () => {
+    const selected = (candidates ?? []).filter(c => invited.includes(c.id));
+    navigate("/newcompetition", {
+      state: {
+        ...formState,          // carry all form fields back
+        invitedMembers: selected,
+      },
+    });
+  };
 
   return (
     <PageShell
@@ -56,7 +76,7 @@ const MAX_MEMBERS = 4;
           </p>
 
           <h2 className="text-2xl font-display text-primary">
-            Web Wonders 2026
+            {formState.competitionName || "New Competition"}
           </h2>
 
           <p className="text-gray-500 mt-2">
@@ -102,7 +122,7 @@ const MAX_MEMBERS = 4;
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${c.available ? 'bg-accent' : 'bg-gray-600'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${c.available ? 'bg-accent' : 'bg-yellow-500'}`} />
                   <span className="text-xs text-gray-500">{c.available ? 'Available' : 'In a team'}</span>
                 </div>
               </div>
@@ -126,16 +146,12 @@ const MAX_MEMBERS = 4;
               <div className="flex items-center justify-between">
                 <span className="text-accent text-sm font-medium">{c.matchScore}% match</span>
                 <button
-    disabled={
-        !c.available ||
-        invited.includes(c.id)
-        || invited.length >= MAX_MEMBERS}
-          onClick={() =>
-            setInvited([...invited, c.id])
-          }
-          className="flex items-center gap-2 text-xs bg-primary text-ink rounded-full px-4 py-2 disabled:opacity-40">
-          {invited.includes(c.id) ? "Invitation Sent ✓": "Invite"}
-        </button>
+                  disabled={invited.includes(c.id) || invited.length >= MAX_MEMBERS - 1}
+                  onClick={() => setInvited([...invited, c.id])}
+                  className="flex items-center gap-2 text-xs bg-primary text-ink rounded-full px-4 py-2 disabled:opacity-40"
+                >
+                  {invited.includes(c.id) ? "Invited ✓" : "Invite"}
+                </button>
               </div>
             </SpotlightCard>
           ))}
@@ -143,35 +159,16 @@ const MAX_MEMBERS = 4;
 
 <div className="flex justify-center mt-10">
   <button
-    disabled={invited.length < MAX_MEMBERS - 1}
-    onClick={() => navigate("/newcompetition")}
+    disabled={invited.length === 0}
+    onClick={handleFinish}
     className="w-full md:w-96 rounded-2xl py-4 bg-primary text-ink font-semibold disabled:opacity-40"
   >
-    Finish
+    Done — Back to Setup
   </button>
 </div>
 
 </>
 )}
-    <div className="flex justify-center mt-10">
-  <button
-    disabled={invited.length === 0}
-    onClick={() => {
-      const selected = (candidates??[]).filter(c =>
-        invited.includes(c.id)
-      );
-
-      navigate("/newcompetition", {
-        state: {
-          invitedMembers: selected,
-        },
-      });
-    }}
-    className="bg-primary text-ink rounded-full px-8 py-3 font-medium disabled:opacity-40"
-  >
-    Finish
-  </button>
-</div>
     </PageShell>
   );
 };

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import SpotlightCard from "../components/reactbits/SpotlightCard";
 import { createCompetition } from "../api/createCompetition";
+import { sendInvite } from "../api/invites";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import {
@@ -40,15 +41,15 @@ const competitionTypes = [
 export default function NewCompetitionPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [competitionName, setCompetitionName] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [description, setDescription] = useState("");
-  const invitedMembers =
-  location.state?.invitedMembers ?? [];
-  const [type, setType] = useState("hackathon");
-  const [maxMembers, setMaxMembers] = useState(4);
-  const [soloMode, setSoloMode] = useState(false);
+  // Restore form state from navigate state (survives round-trip through TeamMatch)
+  const [competitionName, setCompetitionName] = useState(location.state?.competitionName ?? "");
+  const [startDate, setStartDate] = useState(location.state?.startDate ?? "");
+  const [endDate, setEndDate] = useState(location.state?.endDate ?? "");
+  const [description, setDescription] = useState(location.state?.description ?? "");
+  const invitedMembers = location.state?.invitedMembers ?? [];
+  const [type, setType] = useState(location.state?.type ?? "hackathon");
+  const [maxMembers, setMaxMembers] = useState(location.state?.maxMembers ?? 4);
+  const [soloMode, setSoloMode] = useState(location.state?.soloMode ?? false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   
@@ -331,6 +332,13 @@ export default function NewCompetitionPage() {
       navigate("/teammatch", {
         state: {
           invitedMembers,
+          competitionName,
+          startDate,
+          endDate,
+          description,
+          type,
+          maxMembers,
+          soloMode,
         },
       });
     }}
@@ -385,6 +393,21 @@ onChange={(e)=>setDescription(e.target.value)}
   description,
   maxMembers,
 });
+
+// Send real invites to each invited member
+if (!soloMode && invitedMembers.length > 0) {
+  const results = await Promise.allSettled(
+    invitedMembers.map((member: any) =>
+      sendInvite(workspaceId, member.id, competitionName, description || undefined)
+    )
+  );
+  // Log any invite failures (non-blocking — workspace was created)
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`[sendInvite] member ${invitedMembers[i]?.id} failed:`, r.reason);
+    }
+  });
+}
 
 navigate(`/workspace/${workspaceId}`);
             } catch (e) {
