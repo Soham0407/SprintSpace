@@ -42,6 +42,15 @@ export interface UpdateProfileInput {
   notificationsEnabled?: boolean;
 }
 
+export interface Invite {
+  id: string;
+  workspaceId: string;
+  competitionName: string;
+  invitedByName: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+}
+
 export interface ResourceItem {
   id: string;
   title: string;
@@ -103,7 +112,6 @@ export interface TimelineStep {
 }
 
 export interface WorkspaceData {
-  competitionId?: string;
   competitionName: string;
   healthScore: number;
   progressPercent: number;
@@ -138,4 +146,3 @@ export interface CreateResourceInput {
   category: string;
   tags?: string[];
 }
-

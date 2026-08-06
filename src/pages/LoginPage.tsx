@@ -7,7 +7,7 @@ import AuthLayout from '../components/layout/AuthLayout';
 import StarBorder from '../components/reactbits/StarBorder';
 import ClickSpark from '../components/reactbits/ClickSpark';
 import { loginSchema, type LoginValues } from '../lib/authSchemas';
-import { signIn } from '../lib/authApi';
+import { signIn, sendPasswordReset } from '../lib/authApi';
 
 const inputClass =
   'w-full bg-surface border border-white/10 rounded-xl px-4 py-3 text-primary placeholder-gray-600 text-sm focus:outline-none focus:border-accent transition-colors';
@@ -15,9 +15,15 @@ const inputClass =
 const LoginPage = () => {
   const navigate = useNavigate();
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
 
@@ -28,6 +34,27 @@ const LoginPage = () => {
       navigate('/dashboard');
     } catch (e) {
       setSubmitError((e as Error).message);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const email = getValues('email');
+    setForgotMessage(null);
+    setForgotError(null);
+
+    if (!email || !email.includes('@')) {
+      setForgotError('Enter your email above first.');
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      await sendPasswordReset(email);
+      setForgotMessage('Reset link sent — check your inbox.');
+    } catch (e) {
+      setForgotError((e as Error).message || 'Could not send reset email.');
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -71,15 +98,20 @@ const LoginPage = () => {
           )}
         </div>
 
-        <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" className="accent-accent" {...register('remember')} />
-            Remember me
-          </label>
-          <button type="button" className="hover:text-primary transition-colors">
+        <div className="flex items-center justify-end text-xs text-gray-500 pt-1">
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={forgotLoading}
+            className="flex items-center gap-1.5 hover:text-primary transition-colors disabled:opacity-50"
+          >
+            {forgotLoading && <Loader2 size={12} className="animate-spin" />}
             Forgot password?
           </button>
         </div>
+
+        {forgotMessage && <p className="text-accent text-xs">{forgotMessage}</p>}
+        {forgotError && <p className="text-red-400 text-xs">{forgotError}</p>}
 
         {submitError && <p className="text-red-400 text-xs">{submitError}</p>}
 

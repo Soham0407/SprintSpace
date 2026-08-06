@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Bell, Palette, LogOut, Camera, Trash2, Loader2, Check } from 'lucide-react';
+import { X, User, Bell, Palette, LogOut, Camera, Trash2, Loader2, Check, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getProfile, updateProfile, uploadAvatar, removeAvatar } from '../../api/profile';
-import type { Profile } from '../../api/types';
+import { getMyInvites, acceptInvite, declineInvite } from '../../api/invites';
+import type { Profile, Invite } from '../../api/types';
 
 interface SettingsDrawerProps {
   open: boolean;
@@ -50,6 +51,11 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
 
   const [darkTheme, setDarkTheme] = useState(true);
 
+  const [invites, setInvites] = useState<Invite[]>([]);
+  const [loadingInvites, setLoadingInvites] = useState(false);
+  const [inviteActionId, setInviteActionId] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!open || !user?.id) return;
     setLoadingProfile(true);
@@ -63,6 +69,15 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
       })
       .catch(() => setProfile(null))
       .finally(() => setLoadingProfile(false));
+  }, [open, user?.id]);
+
+  useEffect(() => {
+    if (!open || !user?.id) return;
+    setLoadingInvites(true);
+    getMyInvites()
+      .then(setInvites)
+      .catch(() => setInvites([]))
+      .finally(() => setLoadingInvites(false));
   }, [open, user?.id]);
 
   const isDirty =
@@ -132,6 +147,32 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
       await updateProfile(user.id, { notificationsEnabled: next });
     } catch {
       setProfile({ ...profile, notificationsEnabled: !next });
+    }
+  };
+
+  const handleAcceptInvite = async (id: string) => {
+    setInviteActionId(id);
+    setInviteError(null);
+    try {
+      await acceptInvite(id);
+      setInvites((prev) => prev.filter((i) => i.id !== id));
+    } catch (e) {
+      setInviteError((e as Error).message);
+    } finally {
+      setInviteActionId(null);
+    }
+  };
+
+  const handleDeclineInvite = async (id: string) => {
+    setInviteActionId(id);
+    setInviteError(null);
+    try {
+      await declineInvite(id);
+      setInvites((prev) => prev.filter((i) => i.id !== id));
+    } catch (e) {
+      setInviteError((e as Error).message);
+    } finally {
+      setInviteActionId(null);
     }
   };
 
@@ -269,6 +310,63 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Invites */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Mail size={13} /> Invites
+                  </div>
+                  {invites.length > 0 && (
+                    <span className="text-[10px] bg-accent/15 text-accent rounded-full px-2 py-0.5">
+                      {invites.length}
+                    </span>
+                  )}
+                </div>
+
+                {loadingInvites ? (
+                  <div className="bg-card border border-white/5 rounded-2xl p-4 flex items-center justify-center py-6">
+                    <Loader2 size={16} className="animate-spin text-gray-500" />
+                  </div>
+                ) : invites.length === 0 ? (
+                  <div className="bg-card border border-white/5 rounded-2xl p-4 text-center py-6">
+                    <p className="text-gray-500 text-xs">No pending invites.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {invites.map((invite) => (
+                      <div key={invite.id} className="bg-card border border-white/5 rounded-2xl p-4">
+                        <p className="text-primary text-sm mb-0.5">{invite.competitionName}</p>
+                        <p className="text-gray-500 text-xs mb-3">Invited by {invite.invitedByName}</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAcceptInvite(invite.id)}
+                            disabled={inviteActionId === invite.id}
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-primary text-ink rounded-lg py-2 text-xs font-medium hover:bg-white transition-colors disabled:opacity-50"
+                          >
+                            {inviteActionId === invite.id ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Check size={12} />
+                            )}
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleDeclineInvite(invite.id)}
+                            disabled={inviteActionId === invite.id}
+                            className="flex-1 flex items-center justify-center gap-1.5 border border-white/10 text-gray-400 rounded-lg py-2 text-xs font-medium hover:text-primary hover:border-white/30 transition-colors disabled:opacity-50"
+                          >
+                            <X size={12} />
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {inviteError && <p className="text-red-400 text-xs mt-2">{inviteError}</p>}
               </div>
 
               {/* Notifications */}
