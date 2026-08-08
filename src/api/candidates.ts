@@ -23,7 +23,10 @@ export async function getCandidates(): Promise<Candidate[]> {
     return mockDelay(MOCK_CANDIDATES);
   }
 
-  const { data, error } = await supabase
+  // Get the current user so we can exclude them from the list
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const query = supabase
     .from('candidates')
     .select(`
       id,
@@ -34,6 +37,13 @@ export async function getCandidates(): Promise<Candidate[]> {
       profiles ( name, avatar_url, bio )
     `)
     .order('match_score', { ascending: false });
+
+  // Exclude the logged-in user so they don't see themselves
+  if (user) {
+    query.neq('id', user.id);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw new Error(error.message);
 
