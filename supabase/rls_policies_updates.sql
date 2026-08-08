@@ -1,8 +1,3 @@
--- ═══════════════════════════════════════════════════════════════════════════
---  Sprint-Space — Supabase Database RLS Policies Update
---  Run this entire file in: Supabase Dashboard → SQL Editor → New Query
--- ═══════════════════════════════════════════════════════════════════════════
-
 -- 1. DROP EXISTING WORKSPACE-RELATED POLICIES
 DROP POLICY IF EXISTS "profiles: own delete" ON profiles;
 DROP POLICY IF EXISTS "competitions: owner update" ON competitions;

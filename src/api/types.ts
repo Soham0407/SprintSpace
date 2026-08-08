@@ -15,6 +15,8 @@ export interface Competition {
 export interface Candidate {
   id: string;
   name: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
   roleWanted: string;
   skills: string[];
   matchScore: number;
@@ -38,6 +40,16 @@ export interface UpdateProfileInput {
   bio?: string;
   role?: string;
   notificationsEnabled?: boolean;
+}
+
+export interface Invite {
+  id: string;
+  workspaceId: string;
+  competitionName: string;
+  invitedByName: string;
+  description: string | null;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
 }
 
 export interface ResourceItem {
@@ -107,7 +119,6 @@ export interface TimelineStep {
 }
 
 export interface WorkspaceData {
-  competitionId?: string;
   competitionName: string;
   healthScore: number;
   progressPercent: number;
@@ -142,4 +153,3 @@ export interface CreateResourceInput {
   category: string;
   tags?: string[];
 }
-
