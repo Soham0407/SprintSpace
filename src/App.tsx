@@ -3,7 +3,6 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import LandingPage from './pages/LandingPage';
 import NewCompetitionPage from "./pages/NewCompetitionPage";
-import MusicPlayer from './components/music/MusicPlayer';
 
 const WorkspacePage = lazy(() => import('./pages/WorkspacePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -14,7 +13,6 @@ const ResourceHubPage = lazy(() => import('./pages/ResourceHubPage'));
 const SprintRoomPage = lazy(() => import('./pages/SprintRoomPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
-const SpotifyCallbackPage = lazy(() => import('./pages/SpotifyCallbackPage'));
 
 const RouteFallback = () => <div className="min-h-screen bg-ink" />;
 
@@ -67,7 +65,6 @@ function App() {
               <Route path="/resources" element={<ResourceHubPage />} />
               <Route path="/sprintroom" element={<SprintRoomPage />} />
               <Route path="/archive" element={<ArchivePage />} />
-              <Route path="/callback" element={<SpotifyCallbackPage />} />
             </Routes>
           </motion.div>
         </AnimatePresence>
@@ -96,7 +93,6 @@ function App() {
           />
         </AnimatePresence>
       </Suspense>
-      <MusicPlayer />
     </>
   );
 }
