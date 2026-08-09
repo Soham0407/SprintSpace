@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -63,10 +63,85 @@ export default function AskAIWidget({
   workspaceId,
   refreshWorkspace
 }: Props) {
+    const plannerStorageKey = `planner_state_${workspaceId}`;
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [roadmap, setRoadmap] = useState<PlannerResponse | null>(null);
+  const [isPlannerHydrated, setIsPlannerHydrated] = useState(false);
+  const [hasSavedPlannerState, setHasSavedPlannerState] = useState(false);
+    useEffect(() => {
+  if (!workspaceId) return;
 
+  const saved = localStorage.getItem(plannerStorageKey);
+
+  if (saved) {
+    setHasSavedPlannerState(true);
+    try {
+      const parsed = JSON.parse(saved);
+
+      if (parsed.projectIdea !== undefined) {
+        setProjectIdea(parsed.projectIdea);
+      }
+
+      if (parsed.memberSkills !== undefined) {
+        setMemberSkills(parsed.memberSkills);
+      }
+
+      if (parsed.selectedResources !== undefined) {
+        setSelectedResources(parsed.selectedResources);
+      }
+
+      if (parsed.aiInstructions !== undefined) {
+        setAiInstructions(parsed.aiInstructions);
+      }
+
+      if (parsed.currentStep !== undefined) {
+        setCurrentStep(parsed.currentStep);
+      }
+
+      if (parsed.roadmap !== undefined) {
+        setRoadmap(parsed.roadmap);
+      }
+
+    } catch (error) {
+      console.error("Failed to restore planner state:", error);
+    }
+  }
+
+  // VERY IMPORTANT:
+  // Don't allow the save effect to run until restoration is finished.
+  setIsPlannerHydrated(true);
+
+}, [workspaceId, plannerStorageKey]);
+
+  useEffect(() => {
+  if (!workspaceId || !isPlannerHydrated) return;
+
+  const plannerState = {
+    projectIdea,
+    memberSkills,
+    selectedResources,
+    aiInstructions,
+    currentStep,
+    roadmap,
+  };
+
+  localStorage.setItem(
+  plannerStorageKey,
+  JSON.stringify(plannerState)
+);
+
+}, [
+  workspaceId,
+  plannerStorageKey,
+  isPlannerHydrated,
+  projectIdea,
+  memberSkills,
+  selectedResources,
+  aiInstructions,
+  currentStep,
+  roadmap,
+]);
   const handleGenerate = async () => {
     setIsGenerating(true);
     setGenerateError(null);
@@ -82,6 +157,8 @@ export default function AskAIWidget({
         })),
       });
       setRoadmap(result);
+       setCurrentStep(5);
+
     } catch (e) {
       setGenerateError((e as Error).message);
     } finally {
@@ -99,6 +176,12 @@ export default function AskAIWidget({
       roadmap
     );
 
+     // Remember that this workspace has completed AI Planner setup
+    /* localStorage.setItem(
+      `planner_completed_${workspaceId}`,
+      "true"
+    );  */
+    
     await refreshWorkspace();
 
     setOpen(false);
@@ -127,7 +210,7 @@ export default function AskAIWidget({
       </motion.button>
 
       <AnimatePresence>
-        {open && (
+        {open && isPlannerHydrated &&(
           <>
             {/* Blur Background */}
 
@@ -818,6 +901,22 @@ Regenerate
       </select>
 
     </div>
+    <div className="flex justify-end pt-2">
+  <button
+    onClick={() => {
+      if (!roadmap) return;
+
+      const updated = structuredClone(roadmap);
+
+      updated.phases[pIdx].tasks.splice(taskIndex, 1);
+
+      setRoadmap(updated);
+    }}
+    className="text-red-400 hover:text-red-300 text-sm"
+  >
+    Delete Task
+  </button>
+</div>
 
   </div>
 

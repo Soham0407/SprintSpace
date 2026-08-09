@@ -119,6 +119,7 @@ export interface TimelineStep {
 }
 
 export interface WorkspaceData {
+  competitionId: string;
   competitionName: string;
   healthScore: number;
   progressPercent: number;

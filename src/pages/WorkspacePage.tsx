@@ -6,7 +6,7 @@ import CountUp from '../components/reactbits/CountUp';
 import SpotlightCard from '../components/reactbits/SpotlightCard';
 import BlackHoleCountdown from '../components/deadline/BlackHoleCountdown';
 import { useAsyncData } from '../hooks/useAsyncData';
-import { getWorkspace, deleteWorkspace, toggleTaskComplete, assignTask } from '../api/workspace';
+import { getWorkspace, deleteWorkspace, toggleTaskComplete } from '../api/workspace';
 import type { KanbanColumn } from '../api/types';
 import { createArchive } from '../api/archive';
 import AskAIWidget from '../components/workspace/AskAIWidget';
@@ -36,6 +36,9 @@ const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value:
 const WorkspacePage = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
+  const plannerStorageKey = workspaceId
+    ? `planner_state_${workspaceId}`
+    : "";
   const [memberSkills,setMemberSkills]=useState<Record<string,string>>({})
   const { data: ws, loading, error, refresh} =
   useAsyncData(() => getWorkspace(workspaceId!), [workspaceId]);
@@ -49,12 +52,25 @@ const WorkspacePage = () => {
   const [actionError, setActionError] = useState<string | null>(null);
   const [kanban, setKanban] = useState<KanbanColumn[]>([]);
   const [projectIdea,setProjectIdea]=useState("")
-const [plannerOpen,setPlannerOpen]=useState(true)
-const [isGenerating,setIsGenerating]=useState(false)
-const [generatedPlan,setGeneratedPlan]=useState(null)
 const [currentStep, setCurrentStep] = useState(1);
 const [selectedResources, setSelectedResources] = useState<string[]>([]);
 const [aiInstructions, setAiInstructions] = useState("");
+const [plannerOpen, setPlannerOpen] = useState(false);
+
+useEffect(() => {
+  if (!workspaceId) return;
+
+  const savedPlannerState = localStorage.getItem(
+    `planner_state_${workspaceId}`
+  );
+
+  if (savedPlannerState) {
+    // State exists; Ask AI will restore it when opened.
+    return;
+  }
+
+  setPlannerOpen(true);
+}, [workspaceId]);
 
   useEffect(() => {
     if (ws) setKanban(ws.kanban);
@@ -104,13 +120,14 @@ const [aiInstructions, setAiInstructions] = useState("");
     });
 
     try {
-      await toggleTaskComplete(taskId, completing);
-    } catch (e) {
-      setActionError((e as Error).message);
-    }
+  await toggleTaskComplete(taskId, completing);
+  await refresh();
+} catch (e) {
+  setActionError((e as Error).message);
+}
   };
 
-  const handleAssignTask = async (taskId: string, memberId: string) => {
+  /* const handleAssignTask = async (taskId: string, memberId: string) => {
     const resolvedId = memberId === '' ? null : memberId;
 
     setKanban((prev) =>
@@ -125,7 +142,7 @@ const [aiInstructions, setAiInstructions] = useState("");
     } catch (e) {
       setActionError((e as Error).message);
     }
-  };
+  }; */
 
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to permanently delete this workspace and its linked competition? This action cannot be undone.")) {
@@ -286,21 +303,15 @@ const [aiInstructions, setAiInstructions] = useState("");
                               </span>
                             </div>
 
-                            <div className="flex items-center justify-between gap-2 pl-6">
-                              <select
-                                value={task.assignedTo ?? ''}
-                                onChange={(e) => handleAssignTask(task.id, e.target.value)}
-                                className="text-[11px] bg-transparent border border-white/10 rounded-full px-2 py-1 text-gray-400 focus:outline-none focus:border-accent"
-                              >
-                                <option value="">Unassigned</option>
-                                {ws.team.map((m) => (
-                                  <option key={m.id} value={m.id}>
-                                    {m.name}
-                                  </option>
-                                ))}
-                              </select>
-                              {assignedMember && (
-                                <span className="text-[10px] text-accent">{assignedMember.name}</span>
+                            <div className="pl-6">
+                                {assignedMember ? (
+                                <span className="text-[11px] text-accent">
+                                {assignedMember.name}
+                                </span>
+                              ) : (
+                              <span className="text-[11px] text-gray-500">
+                                Unassigned
+                              </span>
                               )}
                             </div>
                           </div>

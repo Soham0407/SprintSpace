@@ -10,6 +10,7 @@ function isSupabaseReady() {
 
 // ─── MOCK data ────────────────────────────────────────────────────────────────
 const MOCK_WORKSPACE: WorkspaceData = {
+  competitionId: '',
   competitionName: 'Web Wonders 2026',
   healthScore: 87,
   progressPercent: 78,
@@ -233,12 +234,12 @@ export async function saveRoadmap(
   }
 
   // Remove old AI tasks
-  const { error: deleteError } = await supabase
-    .from("kanban_tasks")
-    .delete()
-    .eq("workspace_id", workspaceId);
+  const { data: existingTasks, error: existingTasksError } = await supabase
+  .from("kanban_tasks")
+  .select("id, title")
+  .eq("workspace_id", workspaceId);
 
-  if (deleteError) throw deleteError;
+if (existingTasksError) throw existingTasksError;
 
   // Get workspace members
   const { data: members, error: memberError } = await supabase
@@ -250,13 +251,31 @@ export async function saveRoadmap(
 
   let order = 1;
 
-  for (const phase of roadmap.phases) {
+ for (const phase of roadmap.phases) {
 
-    for (const task of phase.tasks) {
+  for (const task of phase.tasks) {
 
-      const member = members?.find(
-        m => m.name === task.assigned_to
-      );
+    const member = members?.find(
+      m => m.name === task.assigned_to
+    );
+
+    const existingTask = existingTasks?.find(
+      t => t.title === task.title
+    );
+
+    if (existingTask) {
+
+      const { error } = await supabase
+        .from("kanban_tasks")
+        .update({
+          assigned_to: member?.id ?? null,
+          phase: phase.title,
+        })
+        .eq("id", existingTask.id);
+
+      if (error) throw error;
+
+    } else {
 
       const { error } = await supabase
         .from("kanban_tasks")
@@ -279,10 +298,13 @@ export async function saveRoadmap(
           phase: phase.title
 
         });
-        if (error) throw error;
+
+      if (error) throw error;
 
     }
 
   }
+
+}
 
 }
