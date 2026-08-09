@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Bell, Palette, LogOut, Camera, Trash2, Loader2, Check, Mail, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { X, User, Bell, LogOut, Camera, Trash2, Loader2, Check, Mail, ChevronUp, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getProfile, updateProfile, uploadAvatar, removeAvatar } from '../../api/profile';
 import { getMyInvites, acceptInvite, declineInvite } from '../../api/invites';
@@ -50,8 +50,6 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
 
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
-
-  const [darkTheme, setDarkTheme] = useState(true);
 
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loadingInvites, setLoadingInvites] = useState(false);
@@ -492,17 +490,6 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
                 <div className="bg-card border border-white/5 rounded-2xl p-4 flex items-center justify-between">
                   <span className="text-sm text-primary/90">Push notifications</span>
                   <Toggle enabled={profile?.notificationsEnabled ?? true} onChange={handleNotificationsToggle} />
-                </div>
-              </div>
-
-              {/* Theme */}
-              <div>
-                <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-                  <Palette size={13} /> Theme
-                </div>
-                <div className="bg-card border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                  <span className="text-sm text-primary/90">Dark mode</span>
-                  <Toggle enabled={darkTheme} onChange={() => setDarkTheme((v) => !v)} />
                 </div>
               </div>
             </div>
