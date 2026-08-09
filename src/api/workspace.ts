@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { mockDelay } from './mockClient';
 import type { WorkspaceData } from './types';
+import type { PlannerResponse } from "./planner";
 
 function isSupabaseReady() {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -9,6 +10,7 @@ function isSupabaseReady() {
 
 // ─── MOCK data ────────────────────────────────────────────────────────────────
 const MOCK_WORKSPACE: WorkspaceData = {
+  competitionId: '',
   competitionName: 'Web Wonders 2026',
   healthScore: 87,
   progressPercent: 78,
@@ -19,26 +21,74 @@ const MOCK_WORKSPACE: WorkspaceData = {
       id: 'todo',
       label: 'To Do',
       tasks: [
-        { id: 't1', title: 'Landing Page' },
-        { id: 't2', title: 'Presentation' },
-        { id: 't3', title: 'Testing' },
-      ],
+  {
+    id: 't1',
+    title: 'Landing Page',
+    assignedTo: null,
+    dueDate: null,
+    completedAt: null,
+  },
+  {
+    id: 't2',
+    title: 'Presentation',
+    assignedTo: null,
+    dueDate: null,
+    completedAt: null,
+  },
+  {
+    id: 't3',
+    title: 'Testing',
+    assignedTo: null,
+    dueDate: null,
+    completedAt: null,
+  },
+],
     },
     {
       id: 'in-progress',
       label: 'In Progress',
       tasks: [
-        { id: 't4', title: 'Authentication' },
-        { id: 't5', title: 'Dashboard' },
-        { id: 't6', title: 'AI Context Setup' },
+        {
+  id: 't4',
+  title: 'Authentication',
+  assignedTo: null,
+  dueDate: null,
+  completedAt: null,
+},
+{
+  id: 't5',
+  title: 'Dashboard',
+  assignedTo: null,
+  dueDate: null,
+  completedAt: null,
+},
+{
+  id: 't6',
+  title: 'AI Context Setup',
+  assignedTo: null,
+  dueDate: null,
+  completedAt: null,
+},
       ],
     },
     {
       id: 'done',
       label: 'Done',
       tasks: [
-        { id: 't7', title: 'Database' },
-        { id: 't8', title: 'Login' },
+        {
+  id: 't7',
+  title: 'Database',
+  assignedTo: null,
+  dueDate: null,
+  completedAt: null,
+},
+{
+  id: 't8',
+  title: 'Login',
+  assignedTo: null,
+  dueDate: null,
+  completedAt: null,
+},
       ],
     },
   ],
@@ -137,6 +187,29 @@ export async function deleteWorkspace(workspaceId: string, competitionId?: strin
   }
 }
 
+/** Toggles a task's completion — moves it to the 'done' column and stamps
+    completed_at, or clears both when un-completing. Mock mode is a no-op
+    since MOCK_WORKSPACE has no live task store yet. */
+export async function toggleTaskComplete(
+  taskId: string,
+  completed: boolean
+): Promise<void> {
+  if (!isSupabaseReady()) {
+    console.warn('[toggleTaskComplete] Supabase not configured — no-op in mock mode.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('kanban_tasks')
+    .update({
+      column_id: completed ? 'done' : 'todo',
+      completed_at: completed ? new Date().toISOString() : null,
+    })
+    .eq('id', taskId);
+
+  if (error) throw new Error(error.message);
+}
+
 export interface WorkspaceGithub {
   githubRepo: string | null;
   githubBranch: string;
@@ -146,7 +219,7 @@ export interface WorkspaceGithub {
 export async function getWorkspaceGithub(workspaceId: string): Promise<WorkspaceGithub> {
   if (!isSupabaseReady()) {
     return mockDelay({
-      githubRepo: null, // Default to null so they have to configure it initially
+      githubRepo: null,
       githubBranch: 'main',
       githubLastUpdated: new Date().toISOString(),
     });
@@ -190,5 +263,105 @@ export async function updateWorkspaceGithub(
     .eq('id', workspaceId);
 
   if (error) throw new Error(error.message);
+}
+
+
+/** Assigns (or unassigns, pass null) a task to a workspace member. */
+export async function assignTask(taskId: string, memberId: string | null): Promise<void> {
+  if (!isSupabaseReady()) {
+    console.warn('[assignTask] Supabase not configured — no-op in mock mode.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('kanban_tasks')
+    .update({ assigned_to: memberId })
+    .eq('id', taskId);
+
+  if (error) throw new Error(error.message);
+}
+export async function saveRoadmap(
+  workspaceId: string,
+  roadmap: PlannerResponse
+) {
+  if (!isSupabaseReady()) {
+    console.warn("Mock mode");
+    return;
+  }
+
+  // Remove old AI tasks
+  const { data: existingTasks, error: existingTasksError } = await supabase
+  .from("kanban_tasks")
+  .select("id, title")
+  .eq("workspace_id", workspaceId);
+
+if (existingTasksError) throw existingTasksError;
+
+  // Get workspace members
+  const { data: members, error: memberError } = await supabase
+    .from("workspace_members")
+    .select("id,name")
+    .eq("workspace_id", workspaceId);
+
+  if (memberError) throw memberError;
+
+  let order = 1;
+
+ for (const phase of roadmap.phases) {
+
+  for (const task of phase.tasks) {
+
+    const member = members?.find(
+      m => m.name === task.assigned_to
+    );
+
+    const existingTask = existingTasks?.find(
+      t => t.title === task.title
+    );
+
+    if (existingTask) {
+
+      const { error } = await supabase
+        .from("kanban_tasks")
+        .update({
+          assigned_to: member?.id ?? null,
+          phase: phase.title,
+        })
+        .eq("id", existingTask.id);
+
+      if (error) throw error;
+
+    } else {
+
+      const { error } = await supabase
+        .from("kanban_tasks")
+        .insert({
+
+          workspace_id: workspaceId,
+
+          column_id: "todo",
+
+          title: task.title,
+
+          sort_order: order++,
+
+          assigned_to: member?.id ?? null,
+
+          due_date: null,
+
+          completed_at: null,
+
+          phase: phase.title
+
+        });
+
+      if (error) throw error;
+
+    }
+
+  }
+
+}
+
 }
 

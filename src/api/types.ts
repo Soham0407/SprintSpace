@@ -91,6 +91,9 @@ export interface CreateArchiveInput {
 export interface KanbanTask {
   id: string;
   title: string;
+  assignedTo: string | null;
+  dueDate: string | null;
+  completedAt: string | null;
 }
 
 export interface KanbanColumn {
@@ -104,6 +107,9 @@ export interface TeamMember {
   name: string;
   role: string;
   progress: number;
+  //new
+  primarySkill?:string
+    interests?:string[]
 }
 
 export interface TimelineStep {
@@ -113,6 +119,7 @@ export interface TimelineStep {
 }
 
 export interface WorkspaceData {
+  competitionId: string;
   competitionName: string;
   healthScore: number;
   progressPercent: number;
