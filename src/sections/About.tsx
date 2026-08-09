@@ -12,10 +12,10 @@ const About = () => {
         <WordsPullUpMultiStyle
           containerClassName="text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[0.95] sm:leading-[0.9] max-w-3xl mx-auto mb-8"
           segments={[
-            { text: 'Six apps, one deadline,', className: 'font-normal text-primary' },
-            { text: 'zero visibility.', className: 'font-display text-accent' },
+            { text: 'Scattered tools', className: 'font-normal text-primary' },
+            { text: 'one place', className: 'font-display text-accent' },
             {
-              text: 'One workspace fixes that.',
+              text: 'Thats it.',
               className: 'font-normal text-primary',
             },
           ]}

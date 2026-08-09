@@ -8,65 +8,16 @@ function isSupabaseReady() {
 }
 
 // ─── MOCK data ────────────────────────────────────────────────────────────────
-const MOCK_RESOURCE_SECTIONS: ResourceSection[] = [
-  {
-    id: 'pitch-decks',
-    label: 'Pitch Decks',
-    items: [
-      { id: 'r1', title: 'Winning Hackathon Pitch Template',   meta: '12-slide deck · Figma', href: '#' },
-      { id: 'r2', title: 'Problem-Solution-Impact Framework',  meta: 'PDF guide',             href: '#' },
-      { id: 'r3', title: '2-Minute Demo Script Structure',     meta: 'Doc template',          href: '#' },
-    ],
-  },
-  {
-    id: 'design-kits',
-    label: 'Design Kits',
-    items: [
-      { id: 'r4', title: 'Dark Mode UI Kit',               meta: 'Figma · 40 components', href: '#' },
-      { id: 'r5', title: 'Landing Page Wireframe Pack',    meta: 'Figma',                 href: '#' },
-      { id: 'r6', title: 'Icon Set — Line & Solid',        meta: 'SVG bundle',            href: '#' },
-    ],
-  },
-  {
-    id: 'boilerplate',
-    label: 'Boilerplate Code',
-    items: [
-      { id: 'r7', title: 'React + Vite + Tailwind Starter',    meta: 'GitHub template', href: '#' },
-      { id: 'r8', title: 'Auth Flow (JWT + Refresh Tokens)',    meta: 'Node.js snippet', href: '#' },
-      { id: 'r9', title: 'FastAPI + PostgreSQL Boilerplate',    meta: 'GitHub template', href: '#' },
-    ],
-  },
-  {
-    id: 'mentorship',
-    label: 'Mentorship',
-    items: [
-      { id: 'r10', title: 'Book a 20-min Mentor Call',              meta: 'Live scheduling', href: '#' },
-      { id: 'r11', title: 'Judging Criteria Breakdown',             meta: 'Guide',           href: '#' },
-      { id: 'r12', title: 'Common Pitfalls in Hackathon Demos',     meta: 'Article',         href: '#' },
-    ],
-  },
-];
+const MOCK_RESOURCE_SECTIONS: ResourceSection[] = [];
 
-const MOCK_RESOURCES: Resource[] = [
-  // Rulebook category
-  { id: 'r1', title: 'Rulebook.pdf', description: 'Official competition rulebook and guidelines', url: 'https://example.com/rulebook.pdf', category: 'Rulebook', tags: ['official', 'guidelines'], createdAt: new Date().toISOString(), createdBy: null },
-  { id: 'r2', title: 'Problem Statement.pdf', description: 'Detailed problem statement and project requirements', url: 'https://example.com/problem_statement.pdf', category: 'Rulebook', tags: ['official', 'requirements'], createdAt: new Date().toISOString(), createdBy: null },
-  { id: 'r3', title: 'Submission Guidelines.pdf', description: 'Instructions for submitting your final project', url: 'https://example.com/submission_guidelines.pdf', category: 'Rulebook', tags: ['official', 'submission'], createdAt: new Date().toISOString(), createdBy: null },
-  { id: 'r4', title: 'Judging Criteria.pdf', description: 'Rubric and guidelines used by the judges', url: 'https://example.com/judging_criteria.pdf', category: 'Rulebook', tags: ['official', 'judging'], createdAt: new Date().toISOString(), createdBy: null },
-  { id: 'r5', title: 'Timeline.pdf', description: 'Important dates, milestones, and deadlines', url: 'https://example.com/timeline.pdf', category: 'Rulebook', tags: ['official', 'schedule'], createdAt: new Date().toISOString(), createdBy: null },
+const MOCK_RESOURCES: Resource[] = [];
 
-  // Project Files category
-  { id: 'r6', title: 'Research.pdf', description: 'Market analysis and user research findings', url: 'https://example.com/research.pdf', category: 'Project File', tags: ['research', 'user-study'], createdAt: new Date().toISOString(), createdBy: null },
-  { id: 'r7', title: 'Architecture.pdf', description: 'Technical architecture and system design document', url: 'https://example.com/architecture.pdf', category: 'Project File', tags: ['design', 'technical'], createdAt: new Date().toISOString(), createdBy: null },
-  { id: 'r8', title: 'Presentation.pptx', description: 'Final pitch presentation deck', url: 'https://example.com/presentation.pptx', category: 'Project File', tags: ['pitch', 'slides'], createdAt: new Date().toISOString(), createdBy: null },
-  { id: 'r9', title: 'UI Design.fig', description: 'Figma prototypes and component library links', url: 'https://figma.com/file/sprintspace', category: 'Project File', tags: ['ui', 'ux', 'design'], createdAt: new Date().toISOString(), createdBy: null },
-];
-
-let mockStore: Resource[] = MOCK_RESOURCES.map((r) => ({ ...r }));
+let mockStore: Resource[] = [];
 
 function mapRow(row: Record<string, any>): Resource {
   return {
     id: row.id as string,
+    workspaceId: (row.workspace_id as string | null) ?? null,
     title: row.title as string,
     description: (row.description as string | null) ?? null,
     url: row.url as string,
@@ -79,14 +30,15 @@ function mapRow(row: Record<string, any>): Resource {
 
 // ─── API functions ────────────────────────────────────────────────────────────
 
-export async function getResources(): Promise<Resource[]> {
+export async function getResources(workspaceId: string): Promise<Resource[]> {
   if (!isSupabaseReady()) {
-    return mockDelay(mockStore);
+    return mockDelay(mockStore.filter((r) => r.workspaceId === workspaceId));
   }
 
   const { data, error } = await supabase
     .from('resources')
     .select('*')
+    .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -97,6 +49,7 @@ export async function createResource(input: CreateResourceInput): Promise<Resour
   if (!isSupabaseReady()) {
     const newResource: Resource = {
       id: `mock-${Date.now()}`,
+      workspaceId: input.workspaceId,
       title: input.title,
       description: input.description ?? null,
       url: input.url,
@@ -114,6 +67,7 @@ export async function createResource(input: CreateResourceInput): Promise<Resour
   const { data, error } = await supabase
     .from('resources')
     .insert({
+      workspace_id: input.workspaceId,
       title: input.title,
       description: input.description,
       url: input.url,
@@ -191,27 +145,7 @@ export async function deleteResource(id: string): Promise<void> {
   }
 }
 
-
 // Backwards compatibility for unused template helper
 export async function getResourceSections(): Promise<ResourceSection[]> {
-  if (!isSupabaseReady()) {
-    return mockDelay(MOCK_RESOURCE_SECTIONS);
-  }
-
-  const { data, error } = await supabase
-    .from('resource_sections')
-    .select(`
-      id,
-      label,
-      resource_items ( id, title, meta, href )
-    `)
-    .order('sort_order');
-
-  if (error) throw new Error(error.message);
-
-  return (data ?? []).map((s) => ({
-    id: s.id as string,
-    label: s.label as string,
-    items: (s.resource_items as { id: string; title: string; meta: string; href: string }[]) ?? [],
-  }));
+  return mockDelay(MOCK_RESOURCE_SECTIONS);
 }
