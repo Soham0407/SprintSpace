@@ -1,26 +1,38 @@
+import json
+
 from app.prompts.planner_prompt import build_planner_prompt
 from app.services.gemini_client import client
 from app.core.config import settings
-import json
+
 
 async def generate_plan(data):
-    print("Step 1: Request received")
 
     prompt = build_planner_prompt(data)
-    print("Step 2: Prompt built")
 
     response = client.models.generate_content(
         model=settings.GEMINI_MODEL,
         contents=prompt
     )
 
-    print("Step 3: Gemini responded")
+    text = response.text.strip()
 
-    text = response.text
+    # Remove markdown if Gemini returns it
+    text = text.replace("```json", "")
+    text = text.replace("```", "")
+    text = text.strip()
 
-    # Remove markdown code fences if present
-    text = text.replace("```json", "").replace("```", "").strip()
+    print("\n========== GEMINI RESPONSE ==========\n")
+    print(text)
+    print("\n=====================================\n")
 
-    plan = json.loads(text)
+    try:
+        plan = json.loads(text)
+        return plan
 
-    return plan
+    except json.JSONDecodeError as e:
+        return {
+            "success": False,
+            "error": "Gemini returned invalid JSON",
+            "details": str(e),
+            "raw_response": text
+        }

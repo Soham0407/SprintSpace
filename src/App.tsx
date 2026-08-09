@@ -4,6 +4,7 @@ import LandingPage from './pages/LandingPage';
 import NewCompetitionPage from "./pages/NewCompetitionPage";
 import MusicPlayer from './components/music/MusicPlayer';
 
+
 const WorkspacePage = lazy(() => import('./pages/WorkspacePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const SignupPage = lazy(() => import('./pages/SignupPage'));
@@ -31,7 +32,7 @@ function App() {
           <Route path="/newcompetition" element={<NewCompetitionPage />}/>
           <Route path="/teammatch" element={<TeamMatchPage />} />
           <Route path="/resources" element={<ResourceHubPage />} />
-          <Route path="/sprintroom" element={<SprintRoomPage />} />
+          <Route path="/sprintroom/:workspaceId" element={<SprintRoomPage />}/>
           <Route path="/archive" element={<ArchivePage />} />
           <Route path="/callback" element={<SpotifyCallbackPage />} />
         </Routes>
