@@ -138,6 +138,7 @@ export interface CountryStat {
 
 export interface Resource {
   id: string;
+  workspaceId: string | null;
   title: string;
   description: string | null;
   url: string;
@@ -148,6 +149,7 @@ export interface Resource {
 }
 
 export interface CreateResourceInput {
+  workspaceId: string;
   title: string;
   description?: string;
   url: string;

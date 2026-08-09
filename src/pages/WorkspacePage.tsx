@@ -372,7 +372,7 @@ useEffect(() => {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                 <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
-                  <Link to="/sprintroom" className="block h-full">
+                  <Link to={`/sprintroom/${workspaceId}`} className="block h-full">
                     <SpotlightCard
                       className="h-full flex flex-col cursor-pointer"
                       spotlightColor="rgba(255, 91, 46, 0.15)"
@@ -397,7 +397,7 @@ useEffect(() => {
                 </motion.div>
 
                 <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
-                  <Link to="/resources" className="block h-full">
+                  <Link to={`/workspace/${workspaceId}/resources`} className="block h-full">
                     <SpotlightCard
                       className="h-full flex flex-col cursor-pointer"
                       spotlightColor="rgba(255, 91, 46, 0.15)"

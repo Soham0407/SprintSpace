@@ -3,11 +3,15 @@ import CleanMockup from '../components/hero/CleanMockup';
 import RevealMask from '../components/hero/RevealMask';
 import CursorGlow from '../components/hero/CursorGlow';
 import FloatingEnterSprint from '../components/hero/FloatingEnterSprint';
+import HeroSpaceLayer from '../components/hero/HeroSpaceLayer';
 import { LiquidChrome } from '../components/reactbits/LiquidChrome';
 
 const Hero = () => {
   return (
     <section className="relative w-full overflow-hidden bg-ink" style={{ height: '100dvh' }}>
+      {/* Space layer — sits behind everything else in the hero */}
+      <HeroSpaceLayer />
+
       {/* Ambient background — a live, moving field standing in for the
           cinematic video backdrop (no real footage available to use) */}
       <div className="absolute inset-0 opacity-40 hero-zoom">
@@ -49,13 +53,13 @@ const Hero = () => {
             className="block text-3xl sm:text-5xl md:text-6xl hero-anim hero-reveal"
             style={{ letterSpacing: '-0.01em', animationDelay: '0.25s' }}
           >
-            SIX TOOLS BECOME
+            ONE WORKSPACE
           </span>
           <span
             className="block text-3xl sm:text-5xl md:text-6xl mt-2 text-accent hero-anim hero-reveal"
             style={{ letterSpacing: '-0.01em', animationDelay: '0.42s' }}
           >
-            ONE WORKSPACE
+            INFINITE SPACE
           </span>
         </h1>
       </div>

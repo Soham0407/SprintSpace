@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   CheckCircle2,
   GitBranch,
@@ -24,17 +25,67 @@ import {
 import PageShell from '../components/layout/PageShell';
 import SpotlightCard from '../components/reactbits/SpotlightCard';
 import { getResources, createResource, deleteResource, uploadResourceFile } from '../api/resources';
+import { getWorkspaceGithub, updateWorkspaceGithub } from '../api/workspace';
 import type { Resource } from '../api/types';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ─── MOCK REPO DATA ────────────────────────────────────────────────────────
-const MOCK_REPO = {
-  url: 'github.com/sprintspace/web-wonders-2026',
-  branch: 'main',
-  lastUpdated: '2 hours ago',
-};
+// Helper to parse GitHub repository owner and repo name from various formats
+function parseGitHubUrl(url: string): { owner: string; repo: string } | null {
+  if (!url) return null;
+  let cleanUrl = url.trim();
+  cleanUrl = cleanUrl.replace(/^(https?:\/\/)?(www\.)?github\.com\//i, '');
+  cleanUrl = cleanUrl.replace(/\.git\/?$/i, '').replace(/\/$/, '');
+  const parts = cleanUrl.split('/');
+  if (parts.length >= 2) {
+    return { owner: parts[0], repo: parts[1] };
+  }
+  return null;
+}
 
-// ─── Row (shared list item) ────────────────────────────────────────────────
+// Fetch the latest commit time for a branch/repo using public GitHub API
+async function fetchLastCommitTime(owner: string, repo: string, branch: string): Promise<Date | null> {
+  const url = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}&per_page=1`;
+  const response = await fetch(url, {
+    headers: {
+      'Accept': 'application/vnd.github.v3+json',
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`GitHub API error: ${response.status}`);
+  }
+  const commits = await response.json();
+  if (commits && commits.length > 0) {
+    return new Date(commits[0].commit.committer.date);
+  }
+  return null;
+}
+
+// Convert a Date to a relative formatted time string
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  if (diffMs < 0) return 'Just now';
+  const diffMins = Math.floor(diffMs / (60 * 1000));
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Ensure the GitHub repo link is an absolute URL
+function getFullGithubUrl(url: string): string {
+  let clean = url.trim();
+  if (!clean.match(/^https?:\/\//i)) {
+    clean = 'https://' + clean;
+  }
+  return clean;
+}
+
+// Row component for resource lists
 const FileRow = ({
   icon: Icon,
   name,
@@ -72,10 +123,22 @@ const FileRow = ({
 );
 
 const ResourceHubPage = () => {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const resolvedWorkspaceId = workspaceId || '';
+
   const [copied, setCopied] = useState(false);
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // GitHub Settings State
+  const [githubUrl, setGithubUrl] = useState('');
+  const [githubBranch, setGithubBranch] = useState('main');
+  const [githubLastUpdated, setGithubLastUpdated] = useState<string | null>(null);
+  const [isEditingRepo, setIsEditingRepo] = useState(false);
+  const [isSavingRepo, setIsSavingRepo] = useState(false);
+  const [githubRepoInput, setGithubRepoInput] = useState('');
+  const [githubBranchInput, setGithubBranchInput] = useState('main');
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -100,7 +163,7 @@ const ResourceHubPage = () => {
   const fetchResources = async () => {
     try {
       setLoading(true);
-      const data = await getResources();
+      const data = await getResources(resolvedWorkspaceId);
       setResources(data);
       setError(null);
     } catch (err: any) {
@@ -110,12 +173,47 @@ const ResourceHubPage = () => {
     }
   };
 
+  const fetchGithubInfo = async () => {
+    if (!resolvedWorkspaceId) return;
+    try {
+      const data = await getWorkspaceGithub(resolvedWorkspaceId);
+      setGithubUrl(data.githubRepo || '');
+      setGithubRepoInput(data.githubRepo || '');
+      setGithubBranch(data.githubBranch || 'main');
+      setGithubBranchInput(data.githubBranch || 'main');
+      
+      if (data.githubRepo) {
+        const parsed = parseGitHubUrl(data.githubRepo);
+        if (parsed) {
+          try {
+            const commitDate = await fetchLastCommitTime(parsed.owner, parsed.repo, data.githubBranch || 'main');
+            if (commitDate) {
+              setGithubLastUpdated(formatRelativeTime(commitDate));
+              return;
+            }
+          } catch (apiErr) {
+            console.warn("Failed to fetch commit date from API, using DB fallback", apiErr);
+          }
+        }
+      }
+      if (data.githubLastUpdated) {
+        setGithubLastUpdated(formatRelativeTime(new Date(data.githubLastUpdated)));
+      } else {
+        setGithubLastUpdated(null);
+      }
+    } catch (err: any) {
+      console.error("Failed to load GitHub settings:", err);
+    }
+  };
+
   useEffect(() => {
     fetchResources();
-  }, []);
+    fetchGithubInfo();
+  }, [resolvedWorkspaceId]);
 
   const handleCopy = () => {
-    navigator.clipboard?.writeText(`https://${MOCK_REPO.url}`).catch(() => {});
+    if (!githubUrl) return;
+    navigator.clipboard?.writeText(getFullGithubUrl(githubUrl)).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
@@ -176,6 +274,7 @@ const ResourceHubPage = () => {
         .filter((t) => t.length > 0);
 
       await createResource({
+        workspaceId: resolvedWorkspaceId,
         title: newTitle.trim(),
         url: finalUrl,
         description: newDescription.trim() || undefined,
@@ -209,6 +308,45 @@ const ResourceHubPage = () => {
       setResources((prev) => prev.filter((r) => r.id !== id));
     } catch (err: any) {
       alert(err.message || 'Failed to delete resource.');
+    }
+  };
+
+  const handleSaveRepo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resolvedWorkspaceId) return;
+    try {
+      setIsSavingRepo(true);
+      
+      let cleanedUrl = githubRepoInput.trim();
+      cleanedUrl = cleanedUrl.replace(/^(https?:\/\/)?(www\.)?github\.com\//i, 'github.com/');
+
+      const lastUpdated = new Date().toISOString();
+      await updateWorkspaceGithub(resolvedWorkspaceId, cleanedUrl || null, githubBranchInput.trim(), lastUpdated);
+      
+      setGithubUrl(cleanedUrl);
+      setGithubBranch(githubBranchInput.trim());
+      
+      if (cleanedUrl) {
+        const parsed = parseGitHubUrl(cleanedUrl);
+        if (parsed) {
+          try {
+            const commitDate = await fetchLastCommitTime(parsed.owner, parsed.repo, githubBranchInput.trim());
+            if (commitDate) {
+              setGithubLastUpdated(formatRelativeTime(commitDate));
+              setIsEditingRepo(false);
+              return;
+            }
+          } catch (e) {
+            console.warn("API check failed during save:", e);
+          }
+        }
+      }
+      setGithubLastUpdated(formatRelativeTime(new Date(lastUpdated)));
+      setIsEditingRepo(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save GitHub settings.');
+    } finally {
+      setIsSavingRepo(false);
     }
   };
 
@@ -301,45 +439,121 @@ const ResourceHubPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* GitHub Repository */}
             <SpotlightCard spotlightColor="rgba(255, 91, 46, 0.15)">
-              <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center text-primary mb-5">
-                <GitBranch size={20} />
-              </div>
-              <h2 className="text-primary text-lg md:text-xl mb-4">GitHub Repository</h2>
-
-              <div className="space-y-2 mb-6 text-sm">
-                <div className="flex items-center justify-between gap-4 bg-surface rounded-xl px-4 py-3 border border-white/5">
-                  <span className="text-gray-500">Repository URL</span>
-                  <span className="text-primary/90 truncate">{MOCK_REPO.url}</span>
+              <div className="flex items-center justify-between mb-5">
+                <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center text-primary">
+                  <GitBranch size={20} />
                 </div>
-                <div className="flex items-center justify-between gap-4 bg-surface rounded-xl px-4 py-3 border border-white/5">
-                  <span className="text-gray-500">Main Branch</span>
-                  <span className="text-primary/90">{MOCK_REPO.branch}</span>
-                </div>
-                <div className="flex items-center justify-between gap-4 bg-surface rounded-xl px-4 py-3 border border-white/5">
-                  <span className="text-gray-500">Last Updated</span>
-                  <span className="text-primary/90">{MOCK_REPO.lastUpdated}</span>
-                </div>
+                {githubUrl && !isEditingRepo && (
+                  <button
+                    onClick={() => {
+                      setGithubRepoInput(githubUrl);
+                      setGithubBranchInput(githubBranch);
+                      setIsEditingRepo(true);
+                    }}
+                    className="flex items-center gap-1.5 text-xs border border-white/10 text-gray-400 hover:text-primary hover:border-white/30 rounded-full px-3.5 py-1.5 transition-colors animate-fade-in"
+                  >
+                    <PenTool size={11} />
+                    Edit Settings
+                  </button>
+                )}
               </div>
+              <h2 className="text-primary text-lg md:text-xl mb-4 font-semibold">GitHub Repository</h2>
 
-              <div className="flex flex-wrap gap-3">
-                <a
-                  href={`https://${MOCK_REPO.url}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 text-xs bg-primary text-ink rounded-full px-4 py-2 font-medium hover:bg-white transition-colors"
-                >
-                  <ExternalLink size={13} />
-                  Open Repository
-                </a>
+              {isEditingRepo || !githubUrl ? (
+                <form onSubmit={handleSaveRepo} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1.5 font-medium">
+                      Repository URL *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. github.com/sprintspace/web-wonders-2026"
+                      value={githubRepoInput}
+                      onChange={(e) => setGithubRepoInput(e.target.value)}
+                      className="w-full bg-surface border border-white/5 rounded-xl px-4 py-3 text-xs text-primary placeholder-gray-500 focus:outline-none focus:border-accent/40 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1.5 font-medium">
+                      Release Branch
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. main"
+                      value={githubBranchInput}
+                      onChange={(e) => setGithubBranchInput(e.target.value)}
+                      className="w-full bg-surface border border-white/5 rounded-xl px-4 py-3 text-xs text-primary placeholder-gray-500 focus:outline-none focus:border-accent/40 transition-colors"
+                    />
+                  </div>
+                  <div className="flex gap-2.5 pt-2">
+                    {githubUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingRepo(false)}
+                        className="flex-1 bg-surface border border-white/5 text-gray-400 hover:text-primary rounded-xl py-2.5 text-xs font-semibold transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={isSavingRepo}
+                      className="flex-1 bg-primary hover:bg-white text-ink disabled:opacity-50 rounded-xl py-2.5 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      {isSavingRepo ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" /> Saving...
+                        </>
+                      ) : (
+                        githubUrl ? 'Save Settings' : 'Link Repository'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="space-y-2 mb-6 text-sm">
+                    <div className="flex items-center justify-between gap-4 bg-surface rounded-xl px-4 py-3 border border-white/5">
+                      <span className="text-gray-500">Repository URL</span>
+                      <span className="text-primary/90 truncate max-w-[200px]" title={githubUrl}>
+                        {githubUrl}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 bg-surface rounded-xl px-4 py-3 border border-white/5">
+                      <span className="text-gray-500">Active Branch</span>
+                      <span className="text-primary/90">{githubBranch}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 bg-surface rounded-xl px-4 py-3 border border-white/5">
+                      <span className="text-gray-500">Last Commit</span>
+                      <span className="text-primary/90">
+                        {githubLastUpdated || 'Checking updates...'}
+                      </span>
+                    </div>
+                  </div>
 
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1.5 text-xs border border-white/10 text-gray-400 hover:text-primary hover:border-white/30 rounded-full px-4 py-2 transition-colors"
-                >
-                  <Copy size={13} />
-                  {copied ? 'Copied!' : 'Copy Link'}
-                </button>
-              </div>
+                  <div className="flex flex-wrap gap-3">
+                    <a
+                      href={getFullGithubUrl(githubUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 text-xs bg-primary text-ink rounded-full px-4 py-2 font-medium hover:bg-white transition-colors"
+                    >
+                      <ExternalLink size={13} />
+                      Open Repository
+                    </a>
+
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center gap-1.5 text-xs border border-white/10 text-gray-400 hover:text-primary hover:border-white/30 rounded-full px-4 py-2 transition-colors"
+                    >
+                      <Copy size={13} />
+                      {copied ? 'Copied!' : 'Copy Link'}
+                    </button>
+                  </div>
+                </>
+              )}
             </SpotlightCard>
 
             {/* Rulebook */}
@@ -349,7 +563,7 @@ const ResourceHubPage = () => {
                   <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center text-primary">
                     <FileText size={20} />
                   </div>
-                  <h2 className="text-primary text-lg md:text-xl">Rulebook</h2>
+                  <h2 className="text-primary text-lg md:text-xl font-semibold">Rulebook</h2>
                 </div>
                 <button
                   onClick={() => handleOpenAddModal('Rulebook')}
@@ -397,7 +611,7 @@ const ResourceHubPage = () => {
                 <div className="w-11 h-11 rounded-lg bg-white/5 flex items-center justify-center text-primary">
                   <FolderOpen size={20} />
                 </div>
-                <h2 className="text-primary text-lg md:text-xl">Project Files</h2>
+                <h2 className="text-primary text-lg md:text-xl font-semibold">Project Files</h2>
               </div>
               <button
                 onClick={() => handleOpenAddModal('Project File')}
@@ -598,7 +812,7 @@ const ResourceHubPage = () => {
 
                           {/* Link anchor */}
                           <a
-                            href={item.url}
+                            href={getFullGithubUrl(item.url)}
                             target="_blank"
                             rel="noreferrer"
                             className="flex items-center justify-center gap-1.5 w-full bg-white/5 hover:bg-primary hover:text-ink text-primary text-xs py-2 rounded-lg font-medium transition-all"
@@ -694,7 +908,6 @@ const ResourceHubPage = () => {
 
                 {/* Dynamic upload body */}
                 {uploadType === 'url' ? (
-                  /* URL input field */
                   <div>
                     <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1.5 font-medium">
                       External URL / Link *
@@ -709,7 +922,6 @@ const ResourceHubPage = () => {
                     />
                   </div>
                 ) : (
-                  /* Drag and drop local file uploader */
                   <div>
                     <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1.5 font-medium">
                       Select Local File *
