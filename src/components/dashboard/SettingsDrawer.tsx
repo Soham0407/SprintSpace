@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Bell, LogOut, Camera, Trash2, Loader2, Check, Mail, ChevronUp, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 import { getProfile, updateProfile, uploadAvatar, removeAvatar } from '../../api/profile';
 import { getMyInvites, acceptInvite, declineInvite } from '../../api/invites';
 import type { Profile, Invite } from '../../api/types';
@@ -57,6 +58,16 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [confirmDeclineId, setConfirmDeclineId] = useState<string | null>(null);
   const [expandedInviteId, setExpandedInviteId] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      onClose();
+      navigate('/login');
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  };
 
   useEffect(() => {
     if (!open || !user?.id) return;
@@ -495,7 +506,10 @@ const SettingsDrawer = ({ open, onClose }: SettingsDrawerProps) => {
             </div>
 
             <div className="px-5 py-5 border-t border-white/10">
-              <button className="w-full flex items-center justify-center gap-2 text-sm text-red-400 border border-red-400/20 bg-red-400/10 hover:bg-red-400/15 rounded-full py-3 transition-colors">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 text-sm text-red-400 border border-red-400/20 bg-red-400/10 hover:bg-red-400/15 rounded-full py-3 transition-colors"
+              >
                 <LogOut size={15} /> Logout
               </button>
             </div>
