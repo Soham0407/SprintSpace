@@ -41,7 +41,7 @@ function App() {
               <Route path="/discover" element={<DiscoverPage />} />
               <Route path="/newcompetition" element={<NewCompetitionPage />} />
               <Route path="/teammatch" element={<TeamMatchPage />} />
-              <Route path="/resources" element={<ResourceHubPage />} />
+              <Route path="/workspace/:workspaceId/resources" element={<ResourceHubPage />} />
               <Route path="/sprintroom" element={<SprintRoomPage />} />
               <Route path="/archive" element={<ArchivePage />} />
               <Route path="/callback" element={<SpotifyCallbackPage />} />

@@ -268,7 +268,7 @@ const WorkspacePage = () => {
                 </motion.div>
 
                 <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
-                  <Link to="/resources" className="block h-full">
+                  <Link to={`/workspace/${workspaceId}/resources`} className="block h-full">
                     <SpotlightCard
                       className="h-full flex flex-col cursor-pointer"
                       spotlightColor="rgba(255, 91, 46, 0.15)"

@@ -136,3 +136,59 @@ export async function deleteWorkspace(workspaceId: string, competitionId?: strin
     }
   }
 }
+
+export interface WorkspaceGithub {
+  githubRepo: string | null;
+  githubBranch: string;
+  githubLastUpdated: string | null;
+}
+
+export async function getWorkspaceGithub(workspaceId: string): Promise<WorkspaceGithub> {
+  if (!isSupabaseReady()) {
+    return mockDelay({
+      githubRepo: null, // Default to null so they have to configure it initially
+      githubBranch: 'main',
+      githubLastUpdated: new Date().toISOString(),
+    });
+  }
+
+  const { data, error } = await supabase
+    .from('workspaces')
+    .select('github_repo, github_branch, github_last_updated')
+    .eq('id', workspaceId)
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    githubRepo: (data.github_repo as string | null) ?? null,
+    githubBranch: (data.github_branch as string | null) ?? 'main',
+    githubLastUpdated: (data.github_last_updated as string | null) ?? null,
+  };
+}
+
+export async function updateWorkspaceGithub(
+  workspaceId: string,
+  githubRepo: string | null,
+  githubBranch: string,
+  githubLastUpdated?: string
+): Promise<void> {
+  if (!isSupabaseReady()) {
+    await mockDelay(null);
+    return;
+  }
+
+  const updatePayload: Record<string, any> = {
+    github_repo: githubRepo,
+    github_branch: githubBranch,
+    github_last_updated: githubLastUpdated || new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from('workspaces')
+    .update(updatePayload)
+    .eq('id', workspaceId);
+
+  if (error) throw new Error(error.message);
+}
+
