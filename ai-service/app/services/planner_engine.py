@@ -3,10 +3,10 @@ import json
 from app.prompts.planner_prompt import build_planner_prompt
 from app.services.gemini_client import client
 from app.core.config import settings
+from app.schemas.planner import PlannerResponse
 
 
 async def generate_plan(data):
-
     prompt = build_planner_prompt(data)
 
     response = client.models.generate_content(
@@ -14,25 +14,11 @@ async def generate_plan(data):
         contents=prompt
     )
 
-    text = response.text.strip()
-
-    # Remove markdown if Gemini returns it
-    text = text.replace("```json", "")
-    text = text.replace("```", "")
-    text = text.strip()
-
-    print("\n========== GEMINI RESPONSE ==========\n")
-    print(text)
-    print("\n=====================================\n")
+    text = response.text.replace("`json", "").replace("`", "").strip()
 
     try:
-        plan = json.loads(text)
-        return plan
-
+        raw = json.loads(text)
     except json.JSONDecodeError as e:
-        return {
-            "success": False,
-            "error": "Gemini returned invalid JSON",
-            "details": str(e),
-            "raw_response": text
-        }
+        raise ValueError(f"AI returned invalid JSON: {e}")
+
+    return PlannerResponse(**raw)
