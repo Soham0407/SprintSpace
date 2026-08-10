@@ -196,17 +196,6 @@ export default function AskAIWidget({
 
   return createPortal(
     <>
-      {/* Floating Button */}
-
-      <motion.button
-        onClick={() => setOpen(true)}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed bottom-8 right-8 z-[9999] w-14 h-14 rounded-full liquid-glass flex items-center justify-center shadow-xl"
-      >
-        <Sparkles className="text-accent" size={20} />
-      </motion.button>
-
       <AnimatePresence>
         {open && isPlannerHydrated &&(
           <>

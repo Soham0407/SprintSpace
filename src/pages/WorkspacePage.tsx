@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ListChecks, Users, MessageCircle, FolderOpen, Flag, ArrowLeft, Trash2, Loader2 } from 'lucide-react';
+import { AlertTriangle, ListChecks, Users, MessageCircle, FolderOpen, Flag, ArrowLeft, Trash2, Loader2, Sparkles } from 'lucide-react';
 import CountUp from '../components/reactbits/CountUp';
 import SpotlightCard from '../components/reactbits/SpotlightCard';
 import BlackHoleCountdown from '../components/deadline/BlackHoleCountdown';
@@ -194,7 +194,37 @@ useEffect(() => {
 
   return (
     <div className="bg-ink min-h-screen">
-      <section className="relative pt-12 md:pt-16 pb-10 px-4 md:px-6">
+      <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-white/10 bg-white/[0.04] backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
+          <span className="text-sm font-semibold text-primary truncate">
+            {ws?.competitionName ?? 'SprintSpace'}
+          </span>
+          <div className="flex items-center gap-1 md:gap-2">
+            <button
+              onClick={() => setPlannerOpen(true)}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-primary hover:bg-white/5 transition"
+            >
+              <Sparkles size={16} className="text-accent" />
+              AskAI
+            </button>
+            <Link
+              to={`/workspace/${workspaceId}/resources`}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-primary hover:bg-white/5 transition"
+            >
+              <FolderOpen size={16} className="text-accent" />
+              Resource Hub
+            </Link>
+            <Link
+              to={`/sprintroom/${workspaceId}`}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-primary hover:bg-white/5 transition"
+            >
+              <MessageCircle size={16} className="text-accent" />
+              Sprintroom
+            </Link>
+          </div>
+        </div>
+      </nav>
+      <section className="relative pt-24 md:pt-28 pb-10 px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
           <button
             onClick={() => navigate(-1)}
@@ -225,12 +255,19 @@ useEffect(() => {
           ) : (
             <>
               <span className="text-xs text-gray-500 tracking-wide">YOUR WORKSPACE</span>
-              <h1 className="font-display text-primary text-2xl md:text-4xl mt-1 mb-8">
+              <h1 className="font-display text-primary text-2xl md:text-4xl mt-1 mb-6">
                 {ws.competitionName}
               </h1>
 
+              <InvitesSection
+                workspaceId={workspaceId!}
+                competitionName={ws.competitionName}
+                currentMembersCount={ws.team.length}
+                team={ws.team}
+              />
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2 grid grid-cols-3 gap-3 sm:gap-4">
+                <div className="lg:col-span-2 grid grid-cols-2 gap-3 sm:gap-4">
                   <SpotlightCard className="!p-5" spotlightColor="rgba(255, 91, 46, 0.15)">
                     <span className="text-xs text-gray-500 block mb-2">Project Health</span>
                     <span className="text-3xl text-primary">
@@ -244,12 +281,6 @@ useEffect(() => {
                       <CountUp to={ws.progressPercent} duration={1.5} />
                       <span className="text-lg text-gray-500">%</span>
                     </span>
-                  </SpotlightCard>
-                  <SpotlightCard className="!p-5" spotlightColor="rgba(255, 91, 46, 0.15)">
-                    <span className="text-xs text-gray-500 flex items-center gap-1.5 mb-2">
-                      <AlertTriangle size={12} /> Blockers
-                    </span>
-                    <span className="text-3xl text-accent">{ws.criticalBlockers}</span>
                   </SpotlightCard>
                 </div>
 
@@ -324,12 +355,6 @@ useEffect(() => {
 
           <section className="px-4 md:px-6 py-10">
             <div className="max-w-6xl mx-auto">
-              <InvitesSection
-                workspaceId={workspaceId!}
-                competitionName={ws.competitionName}
-                currentMembersCount={ws.team.length}
-              />
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div>
                   <h2 className="text-primary text-lg mb-6">Team Dashboard</h2>
