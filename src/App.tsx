@@ -56,6 +56,7 @@ function App() {
             <Routes location={location}>
               <Route path="/" element={<LandingPage />} />
               <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
+              <Route path="/workspace/:workspaceId/resources" element={<ResourceHubPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
@@ -64,6 +65,7 @@ function App() {
               <Route path="/teammatch" element={<TeamMatchPage />} />
               <Route path="/resources" element={<ResourceHubPage />} />
               <Route path="/sprintroom" element={<SprintRoomPage />} />
+              <Route path="/sprintroom/:workspaceId" element={<SprintRoomPage />} />
               <Route path="/archive" element={<ArchivePage />} />
             </Routes>
           </motion.div>

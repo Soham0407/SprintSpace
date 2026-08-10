@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { mockDelay } from './mockClient';
-import type { Invite } from './types';
+import type { Invite, WorkspaceInvite } from './types';
 
 function isSupabaseReady() {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -142,5 +142,70 @@ export async function declineInvite(id: string): Promise<void> {
     .from('invites')
     .update({ status: 'declined' })
     .eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Fetches every invite (pending + accepted) sent for a workspace.
+ * Used by the workspace Invites section so the owner can see who has
+ * been invited and whether they have joined yet.
+ */
+export async function getWorkspaceInvites(workspaceId: string): Promise<WorkspaceInvite[]> {
+  if (!isSupabaseReady()) {
+    return mockDelay(
+      mockStore
+        .filter((i) => i.workspaceId === workspaceId && i.status !== 'declined')
+        .map((i) => ({
+          id: i.id,
+          workspaceId: i.workspaceId,
+          userId: '',
+          name: i.invitedByName,
+          status: i.status === 'pending' ? 'pending' : 'accepted',
+          createdAt: i.createdAt,
+        }))
+    );
+  }
+
+  const { data: rows, error } = await supabase
+    .from('invites')
+    .select('id, invited_user_id, status, created_at')
+    .eq('workspace_id', workspaceId)
+    .in('status', ['pending', 'accepted'])
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  if (!rows || rows.length === 0) return [];
+
+  // Batch-look up invited user names from profiles
+  const userIds = [...new Set(rows.map((r) => r.invited_user_id as string).filter(Boolean))];
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, name')
+    .in('id', userIds);
+
+  const nameMap: Record<string, string> = {};
+  for (const p of profiles ?? []) {
+    nameMap[p.id] = p.name;
+  }
+
+  return rows.map((row) => ({
+    id: row.id as string,
+    workspaceId,
+    userId: row.invited_user_id as string,
+    name: nameMap[row.invited_user_id as string] ?? 'Invited Member',
+    status: row.status as WorkspaceInvite['status'],
+    createdAt: row.created_at as string,
+  }));
+}
+
+/** Cancels a pending invite by deleting its row, freeing up a team slot. */
+export async function cancelInvite(id: string): Promise<void> {
+  if (!isSupabaseReady()) {
+    mockStore = mockStore.filter((i) => i.id !== id);
+    await mockDelay(null);
+    return;
+  }
+
+  const { error } = await supabase.from('invites').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }

@@ -68,14 +68,12 @@ export default function AskAIWidget({
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [roadmap, setRoadmap] = useState<PlannerResponse | null>(null);
   const [isPlannerHydrated, setIsPlannerHydrated] = useState(false);
-  const [hasSavedPlannerState, setHasSavedPlannerState] = useState(false);
     useEffect(() => {
   if (!workspaceId) return;
 
   const saved = localStorage.getItem(plannerStorageKey);
 
   if (saved) {
-    setHasSavedPlannerState(true);
     try {
       const parsed = JSON.parse(saved);
 

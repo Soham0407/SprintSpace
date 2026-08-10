@@ -4,6 +4,7 @@ import SpotlightCard from '../components/reactbits/SpotlightCard';
 import SkeletonCard from '../components/layout/SkeletonCard';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { getCandidates } from '../api/candidates';
+import { sendInvite } from '../api/invites';
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
@@ -25,8 +26,23 @@ const TeamMatchPage = () => {
     soloMode:        location.state?.soloMode ?? false,
   };
 
-  const [invited, setInvited] = useState<string[]>(alreadyInvited.map((m: any) => m.id));
-  const MAX_MEMBERS = formState.maxMembers;
+  // Workspace-mode state (inviting from inside an existing workspace)
+  const workspaceId = location.state?.workspaceId ?? null;
+  const fromWorkspace = Boolean(location.state?.fromWorkspace);
+  const alreadyInvitedIds: string[] = location.state?.alreadyInvitedIds ?? [];
+  const currentMembersCount = location.state?.currentMembersCount ?? 1;
+  const remainingSlots = location.state?.remainingSlots ?? Math.max(0, formState.maxMembers - 1);
+
+  const [invited, setInvited] = useState<string[]>(
+    fromWorkspace ? alreadyInvitedIds : alreadyInvited.map((m: any) => m.id)
+  );
+  const [sending, setSending] = useState(false);
+
+  // In workspace mode only newly picked people count against the open slots
+  const newSelected = invited.filter((id) => !alreadyInvitedIds.includes(id));
+  const canInviteMore = fromWorkspace
+    ? newSelected.length < remainingSlots
+    : invited.length < formState.maxMembers - 1;
 
   const handleFinish = () => {
     const selected = (candidates ?? []).filter(c => invited.includes(c.id));
@@ -38,11 +54,31 @@ const TeamMatchPage = () => {
     });
   };
 
+  const handleSendInvites = async () => {
+    if (!workspaceId) return;
+    setSending(true);
+    const selected = (candidates ?? []).filter((c) => newSelected.includes(c.id));
+    const results = await Promise.allSettled(
+      selected.map((m) =>
+        sendInvite(workspaceId, m.id, formState.competitionName || "Sprint", formState.description || undefined)
+      )
+    );
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        console.error(`[sendInvite] member ${selected[i]?.id} failed:`, r.reason);
+      }
+    });
+    setSending(false);
+    navigate(`/workspace/${workspaceId}`);
+  };
+
   return (
     <PageShell
       eyebrow="TEAM SETUP"
       title="Invite Team Members"
-      intro="Choose teammates for your competition. Invitations will be sent once you finish."
+      intro={fromWorkspace
+        ? "Choose teammates for your workspace. Invitations are sent right away."
+        : "Choose teammates for your competition. Invitations will be sent once you finish."}
     >
 
       {loading && (
@@ -72,7 +108,7 @@ const TeamMatchPage = () => {
 
         <div>
           <p className="text-xs tracking-widest text-gray-500 mb-2">
-            CREATING
+            {fromWorkspace ? "INVITING TO" : "CREATING"}
           </p>
 
           <h2 className="text-2xl font-display text-primary">
@@ -80,7 +116,9 @@ const TeamMatchPage = () => {
           </h2>
 
           <p className="text-gray-500 mt-2">
-            Invite teammates before creating your workspace.
+            {fromWorkspace
+              ? "Pick teammates to invite to this workspace."
+              : "Invite teammates before creating your workspace."}
           </p>
         </div>
 
@@ -88,7 +126,7 @@ const TeamMatchPage = () => {
 
           <div className="text-center">
             <p className="text-3xl text-accent font-semibold">
-              {invited.length + 1}
+              {fromWorkspace ? currentMembersCount + newSelected.length : invited.length + 1}
             </p>
             <p className="text-xs text-gray-500">
               Current Members
@@ -97,7 +135,7 @@ const TeamMatchPage = () => {
 
           <div className="text-center">
             <p className="text-3xl text-primary font-semibold">
-              {MAX_MEMBERS}
+              {formState.maxMembers}
             </p>
             <p className="text-xs text-gray-500">
               Maximum
@@ -146,7 +184,7 @@ const TeamMatchPage = () => {
               <div className="flex items-center justify-between">
                 <span className="text-accent text-sm font-medium">{c.matchScore}% match</span>
                 <button
-                  disabled={invited.includes(c.id) || invited.length >= MAX_MEMBERS - 1}
+                  disabled={invited.includes(c.id) || !canInviteMore}
                   onClick={() => setInvited([...invited, c.id])}
                   className="flex items-center gap-2 text-xs bg-primary text-ink rounded-full px-4 py-2 disabled:opacity-40"
                 >
@@ -159,11 +197,11 @@ const TeamMatchPage = () => {
 
 <div className="flex justify-center mt-10">
   <button
-    disabled={invited.length === 0}
-    onClick={handleFinish}
+    disabled={fromWorkspace ? newSelected.length === 0 || sending : invited.length === 0}
+    onClick={fromWorkspace ? handleSendInvites : handleFinish}
     className="w-full md:w-96 rounded-2xl py-4 bg-primary text-ink font-semibold disabled:opacity-40"
   >
-    Done — Back to Setup
+    {fromWorkspace ? (sending ? "Sending invites..." : "Send Invites — Back to Workspace") : "Done — Back to Setup"}
   </button>
 </div>
 
