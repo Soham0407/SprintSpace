@@ -50,8 +50,6 @@ export interface Invite {
   description: string | null;
   status: 'pending' | 'accepted' | 'declined';
   createdAt: string;
-  userId: string;
-  name: string;
 }
 
 export interface ResourceItem {

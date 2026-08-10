@@ -17,8 +17,6 @@ let mockStore: Invite[] = [
     description: 'A web dev competition focused on creative UI/UX.',
     status: 'pending',
     createdAt: new Date().toISOString(),
-    userId: 'mock-user-1',
-    name: 'Demo User',
   },
 ];
 
@@ -38,9 +36,7 @@ export async function getMyInvites(): Promise<Invite[]> {
   // Step 1: Fetch raw invite rows (no join — avoids ambiguous FK issue with two profiles FKs)
   const { data: rows, error } = await supabase
     .from('invites')
-    .select(
-  'id, workspace_id, competition_name, description, status, created_at, invited_by, invited_user_id'
-)
+    .select('id, workspace_id, competition_name, description, status, created_at, invited_by')
     .eq('invited_user_id', user.id)
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
@@ -68,8 +64,6 @@ export async function getMyInvites(): Promise<Invite[]> {
     description: (row.description as string | null) ?? null,
     status: row.status as Invite['status'],
     createdAt: row.created_at as string,
-     userId: row.invited_user_id as string,
-  name: nameMap[row.invited_by as string] ?? 'Someone', 
   }));
 }
 
@@ -92,8 +86,6 @@ export async function sendInvite(
       description: description ?? null,
       status: 'pending',
       createdAt: new Date().toISOString(),
-            userId: invitedUserId,
-      name: 'Invited Member',
     };
     mockStore = [...mockStore, mockInvite];
     await mockDelay(null);
@@ -150,86 +142,5 @@ export async function declineInvite(id: string): Promise<void> {
     .from('invites')
     .update({ status: 'declined' })
     .eq('id', id);
-  if (error) throw new Error(error.message);
-}
-/**
- * Fetches all invites belonging to a specific workspace.
- * Used by the Invites section inside a workspace.
- */
-export async function getWorkspaceInvites(
-  workspaceId: string
-): Promise<(Invite & { userId: string; name: string })[]> {
-  if (!isSupabaseReady()) {
-    return mockDelay(
-      mockStore.filter((i) => i.workspaceId === workspaceId)
-    );
-  }
-
-  const { data: rows, error } = await supabase
-    .from('invites')
-    .select(
-      'id, workspace_id, invited_user_id, competition_name, description, status, created_at'
-    )
-    .eq('workspace_id', workspaceId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw new Error(error.message);
-  if (!rows || rows.length === 0) return [];
-
-  const invitedUserIds = [
-    ...new Set(
-      rows
-        .map((r) => r.invited_user_id as string)
-        .filter(Boolean)
-    ),
-  ];
-
-  const { data: profiles, error: profileError } = await supabase
-    .from('profiles')
-    .select('id, name')
-    .in('id', invitedUserIds);
-
-  if (profileError) throw new Error(profileError.message);
-
-  const nameMap: Record<string, string> = {};
-
-  for (const profile of profiles ?? []) {
-    nameMap[profile.id] = profile.name;
-  }
-
-  return rows.map((row) => ({
-    id: row.id as string,
-    workspaceId: row.workspace_id as string,
-    competitionName: row.competition_name as string,
-    invitedByName: '',
-    description: (row.description as string | null) ?? null,
-    status: row.status as Invite['status'],
-    createdAt: row.created_at as string,
-    userId: row.invited_user_id as string,
-    name: nameMap[row.invited_user_id as string] ?? 'Someone',
-  }));
-}
-
-/**
- * Cancels a pending workspace invite.
- */
-export async function cancelInvite(inviteId: string): Promise<void> {
-  if (!isSupabaseReady()) {
-    mockStore = mockStore.map((invite) =>
-      invite.id === inviteId
-        ? { ...invite, status: 'declined' }
-        : invite
-    );
-
-    await mockDelay(null);
-    return;
-  }
-
-  const { error } = await supabase
-    .from('invites')
-    .update({ status: 'declined' })
-    .eq('id', inviteId)
-    .eq('status', 'pending');
-
   if (error) throw new Error(error.message);
 }
