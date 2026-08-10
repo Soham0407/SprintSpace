@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ListChecks, Users, MessageCircle, FolderOpen, Flag, ArrowLeft, Trash2, Loader2, Sparkles } from 'lucide-react';
+import { AlertTriangle, ListChecks, Users, MessageCircle, FolderOpen, Flag, ArrowLeft, Trash2, Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import CountUp from '../components/reactbits/CountUp';
 import SpotlightCard from '../components/reactbits/SpotlightCard';
 import BlackHoleCountdown from '../components/deadline/BlackHoleCountdown';
@@ -33,7 +33,11 @@ const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value:
     </div>
   );
 };
-
+const KANBAN_COLUMNS: { id: string; label: string }[] = [
+  { id: 'todo', label: 'To Do' },
+  { id: 'in-progress', label: 'In Progress' },
+  { id: 'done', label: 'Done' },
+];
 const WorkspacePage = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
@@ -73,6 +77,43 @@ useEffect(() => {
   useEffect(() => {
     if (ws) setKanban(ws.kanban);
   }, [ws]);
+  const phaseGroups = useMemo(() => {
+    const groups = new Map<string, { total: number; done: number; tasks: (KanbanColumn['tasks'][number] & { columnId: string })[] }>();
+
+    kanban.forEach((column) => {
+      column.tasks.forEach((task) => {
+        const key = task.phase ?? 'Unphased';
+        const entry = groups.get(key) ?? { total: 0, done: 0, tasks: [] };
+        entry.total += 1;
+        if (column.id === 'done') entry.done += 1;
+        entry.tasks.push({ ...task, columnId: column.id });
+        groups.set(key, entry);
+      });
+    });
+
+    return Array.from(groups.entries()).map(([title, data]) => {
+      const columnId = data.done === 0 ? 'todo' : data.done === data.total ? 'done' : 'in-progress';
+      return {
+        title,
+        done: data.done,
+        total: data.total,
+        columnId,
+        tasks: data.tasks.sort((a, b) => (a.day ?? 0) - (b.day ?? 0)),
+      };
+    });
+  }, [kanban]);
+
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
+
+  const togglePhaseExpanded = (title: string) => {
+    setExpandedPhases((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+  };
   const memberProgress = useMemo(() => {
     const counts = new Map<string, { total: number; done: number }>();
 
@@ -295,63 +336,166 @@ useEffect(() => {
 
       {!loading && ws && (
         <>
-          <section className="px-4 md:px-6 py-10">
+
+          {phaseGroups.length > 0 && (
+            <section className="px-4 md:px-6 py-10">
             <div className="max-w-6xl mx-auto">
               <div className="flex items-center gap-2 mb-6">
                 <ListChecks size={16} className="text-primary" />
                 <h2 className="text-primary text-lg">Smart Kanban</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {kanban.map((column) => (
-                  <div key={column.id} className="bg-card rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm text-gray-400">{column.label}</span>
-                      <span className="text-xs text-gray-600">{column.tasks.length}</span>
+                {KANBAN_COLUMNS.map((column) => {
+                  const columnPhases = phaseGroups.filter((p) => p.columnId === column.id);
+                  return (
+                    <div key={column.id} className="bg-card rounded-2xl p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-sm text-gray-400">{column.label}</span>
+                        <span className="text-xs text-gray-600">{columnPhases.length}</span>
+                      </div>
+                      <div className="space-y-2">
+                        {columnPhases.length === 0 && (
+                          <p className="text-xs text-gray-600 text-center py-4">No phases yet.</p>
+                        )}
+                        {columnPhases.map((phase) => {
+                          const isExpanded = expandedPhases.has(phase.title);
+                          const pct = phase.total === 0 ? 0 : Math.round((phase.done / phase.total) * 100);
+                          return (
+                            <div
+                              key={phase.title}
+                              className="bg-surface rounded-xl border border-white/5 overflow-hidden"
+                            >
+                              <button
+                                onClick={() => togglePhaseExpanded(phase.title)}
+                                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <span className="text-sm text-primary/90 block truncate">{phase.title}</span>
+                                  <div className="flex items-center gap-2 mt-1.5">
+                                    <div className="h-1 flex-1 rounded-full bg-white/10 overflow-hidden">
+                                      <div
+                                        className="h-full rounded-full bg-accent transition-all"
+                                        style={{ width: `${pct}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-[11px] text-gray-500 shrink-0">
+                                      {phase.done}/{phase.total}
+                                    </span>
+                                  </div>
+                                </div>
+                                {isExpanded ? (
+                                  <ChevronUp size={14} className="text-gray-500 shrink-0" />
+                                ) : (
+                                  <ChevronDown size={14} className="text-gray-500 shrink-0" />
+                                )}
+                              </button>
+
+                              {isExpanded && (
+                                <div className="px-4 pb-3 space-y-2 border-t border-white/5 pt-3">
+                                  {phase.tasks.map((task) => {
+                                    const assignedMember = ws.team.find((m) => m.id === task.assignedTo);
+                                    const isDone = task.columnId === 'done';
+                                    return (
+                                      <div key={task.id} className="text-xs">
+                                        <span
+                                          className={isDone ? 'text-gray-500 line-through' : 'text-primary/90'}
+                                        >
+                                          {task.title}
+                                        </span>
+                                        <div className="flex items-center gap-2 mt-0.5 text-[10px]">
+                                          <span className={assignedMember ? 'text-accent' : 'text-gray-600'}>
+                                            {assignedMember?.name ?? 'Unassigned'}
+                                          </span>
+                                          {task.day != null && (
+                                            <span className="text-gray-600">· Day {task.day}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      {column.tasks.map((task) => {
-                        const assignedMember = ws.team.find((m) => m.id === task.assignedTo);
-                        return (
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+          )}
+          {ws.team.length > 0 && (
+            <section className="px-4 md:px-6 py-10">
+              <div className="max-w-6xl mx-auto">
+                <h2 className="text-primary text-lg mb-6">Member Task Lists</h2>
+
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {ws.team.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedMemberId(m.id)}
+                      className={`text-xs px-3.5 py-1.5 rounded-full border transition-colors ${
+                        (selectedMemberId ?? ws.team[0].id) === m.id
+                          ? 'bg-primary text-ink border-primary'
+                          : 'border-white/10 text-gray-400 hover:text-primary hover:border-white/30'
+                      }`}
+                    >
+                      {m.name}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="bg-card rounded-2xl p-4 border border-white/5">
+                  {(() => {
+                    const activeId = selectedMemberId ?? ws.team[0].id;
+                    const myTasks = kanban
+                      .flatMap((col) => col.tasks.map((t) => ({ ...t, columnId: col.id })))
+                      .filter((t) => t.assignedTo === activeId)
+                      .sort((a, b) => (a.day ?? 0) - (b.day ?? 0));
+
+                    if (myTasks.length === 0) {
+                      return <p className="text-gray-500 text-sm text-center py-6">No tasks assigned yet.</p>;
+                    }
+
+                    return (
+                      <div className="space-y-2">
+                        {myTasks.map((task) => (
                           <div
                             key={task.id}
-                            className="bg-surface rounded-xl px-4 py-3 border border-white/5"
+                            className="flex items-center gap-3 bg-surface rounded-xl px-4 py-3 border border-white/5"
                           >
-                            <div className="flex items-start gap-2.5 mb-2">
-                              <input
-                                type="checkbox"
-                                checked={column.id === 'done'}
-                                onChange={() => handleToggleTask(task.id, column.id)}
-                                className="mt-0.5 accent-accent shrink-0"
-                              />
+                            <input
+                              type="checkbox"
+                              checked={task.columnId === 'done'}
+                              onChange={() => handleToggleTask(task.id, task.columnId)}
+                              className="accent-accent shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
                               <span
-                                className={`text-sm ${
-                                  column.id === 'done' ? 'text-gray-500 line-through' : 'text-primary/90'
+                                className={`text-sm block ${
+                                  task.columnId === 'done' ? 'text-gray-500 line-through' : 'text-primary/90'
                                 }`}
                               >
                                 {task.title}
                               </span>
-                            </div>
-
-                            <div className="pl-6">
-                                {assignedMember ? (
-                                <span className="text-[11px] text-accent">
-                                {assignedMember.name}
-                                </span>
-                              ) : (
-                              <span className="text-[11px] text-gray-500">
-                                Unassigned
-                              </span>
+                              {task.phase && (
+                                <span className="text-[11px] text-gray-500">{task.phase}</span>
                               )}
                             </div>
+                            {task.day != null && (
+                              <span className="text-[11px] text-accent shrink-0">Day {task.day}</span>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           <section className="px-4 md:px-6 py-10">
             <div className="max-w-6xl mx-auto">

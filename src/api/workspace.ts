@@ -27,6 +27,8 @@ const MOCK_WORKSPACE: WorkspaceData = {
     assignedTo: null,
     dueDate: null,
     completedAt: null,
+    phase: null,
+    day: null,
   },
   {
     id: 't2',
@@ -34,6 +36,8 @@ const MOCK_WORKSPACE: WorkspaceData = {
     assignedTo: null,
     dueDate: null,
     completedAt: null,
+    phase: null,
+    day: null,
   },
   {
     id: 't3',
@@ -41,6 +45,8 @@ const MOCK_WORKSPACE: WorkspaceData = {
     assignedTo: null,
     dueDate: null,
     completedAt: null,
+    phase: null,
+    day: null,
   },
 ],
     },
@@ -54,6 +60,8 @@ const MOCK_WORKSPACE: WorkspaceData = {
   assignedTo: null,
   dueDate: null,
   completedAt: null,
+  phase: null,
+  day: null,
 },
 {
   id: 't5',
@@ -61,6 +69,8 @@ const MOCK_WORKSPACE: WorkspaceData = {
   assignedTo: null,
   dueDate: null,
   completedAt: null,
+  phase: null,
+  day: null,
 },
 {
   id: 't6',
@@ -68,6 +78,8 @@ const MOCK_WORKSPACE: WorkspaceData = {
   assignedTo: null,
   dueDate: null,
   completedAt: null,
+  phase: null,
+  day: null,
 },
       ],
     },
@@ -81,6 +93,8 @@ const MOCK_WORKSPACE: WorkspaceData = {
   assignedTo: null,
   dueDate: null,
   completedAt: null,
+  phase: null,
+  day: null,
 },
 {
   id: 't8',
@@ -88,6 +102,8 @@ const MOCK_WORKSPACE: WorkspaceData = {
   assignedTo: null,
   dueDate: null,
   completedAt: null,
+  phase: null,
+  day: null,
 },
       ],
     },
@@ -345,6 +361,7 @@ if (existingTasksError) throw existingTasksError;
         .update({
           assigned_to: member?.id ?? null,
           phase: phase.title,
+          day_number: task.day,
         })
         .eq("id", existingTask.id);
 
@@ -370,7 +387,9 @@ if (existingTasksError) throw existingTasksError;
 
           completed_at: null,
 
-          phase: phase.title
+          phase: phase.title,
+
+          day_number: task.day
 
         });
 

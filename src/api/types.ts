@@ -125,6 +125,8 @@ export interface KanbanTask {
   assignedTo: string | null;
   dueDate: string | null;
   completedAt: string | null;
+  phase: string | null;
+  day: number | null;
 }
 
 export interface KanbanColumn {
