@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, UserPlus, Clock, Loader2, X, CheckCircle2 } from 'lucide-react';
-import { useAsyncData } from '../../hooks/useAsyncData';
 import { cancelInvite } from '../../api/invites';
-import { getWorkspaceMaxMembers } from '../../api/workspace';
 import type { WorkspaceInvite } from '../../api/types';
 
 interface Props {
@@ -38,18 +36,11 @@ const InvitesSection = ({
   alreadyInvitedIds,
 }: Props) => {
   const navigate = useNavigate();
-  const { data: maxMembers } = useAsyncData(
-    () => getWorkspaceMaxMembers(workspaceId),
-    [workspaceId]
-  );
-
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
   const pending = invites.filter((i) => i.status === 'pending');
-  const max = maxMembers ?? 4;
-  const remainingSlots = Math.max(0, max - currentMembersCount - pending.length);
-  const canAddMore = remainingSlots > 0;
+  const canAddMore = true;
 
   const handleCancel = async (invite: WorkspaceInvite) => {
     setCancellingId(invite.id);
@@ -70,9 +61,6 @@ const InvitesSection = ({
         workspaceId,
         competitionName,
         fromWorkspace: true,
-        maxMembers: max,
-        currentMembersCount,
-        remainingSlots,
         pendingInvitesCount: pending.length,
         alreadyInvitedIds,
       },
@@ -87,7 +75,7 @@ const InvitesSection = ({
           <h2 className="text-primary text-lg">Team</h2>
         </div>
         <span className="text-xs text-accent">
-          {currentMembersCount + pending.length} / {max}
+          {currentMembersCount + pending.length} members
         </span>
       </div>
 

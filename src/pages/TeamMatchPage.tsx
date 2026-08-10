@@ -31,9 +31,7 @@ const TeamMatchPage = () => {
   const fromWorkspace = Boolean(location.state?.fromWorkspace);
   const alreadyInvitedIds: string[] = location.state?.alreadyInvitedIds ?? [];
   const currentMembersCount = location.state?.currentMembersCount ?? 1;
-  const pendingInvitesCount: number = location.state?.pendingInvitesCount ?? 0;
-  const remainingSlots = location.state?.remainingSlots ?? Math.max(0, formState.maxMembers - 1);
-
+  const pendingInvitesCount = location.state?.pendingInvitesCount ?? 0;
   const [invited, setInvited] = useState<string[]>(
     fromWorkspace ? alreadyInvitedIds : alreadyInvited.map((m: any) => m.id)
   );
@@ -42,9 +40,7 @@ const TeamMatchPage = () => {
 
   // In workspace mode only newly picked people count against the open slots
   const newSelected = invited.filter((id) => !alreadyInvitedIds.includes(id));
-  const canInviteMore = fromWorkspace
-    ? newSelected.length < remainingSlots
-    : invited.length < formState.maxMembers - 1;
+  const canInviteMore = true;
 
   const handleFinish = () => {
     const selected = (candidates ?? []).filter(c => invited.includes(c.id));
@@ -150,16 +146,7 @@ const TeamMatchPage = () => {
                 : invited.length + 1}
             </p>
             <p className="text-xs text-gray-500">
-              Current Members
-            </p>
-          </div>
-
-          <div className="text-center">
-            <p className="text-3xl text-primary font-semibold">
-              {formState.maxMembers}
-            </p>
-            <p className="text-xs text-gray-500">
-              Maximum
+              Total Team Size
             </p>
           </div>
 
