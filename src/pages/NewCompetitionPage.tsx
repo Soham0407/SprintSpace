@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import SpotlightCard from "../components/reactbits/SpotlightCard";
 import { createCompetition } from "../api/createCompetition";
 import { sendInvite } from "../api/invites";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
 import {
   ArrowLeft,
   Users,
@@ -41,6 +42,28 @@ const competitionTypes = [
 export default function NewCompetitionPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [ownerName, setOwnerName] = useState("You");
+  useEffect(() => {
+  const loadOwnerName = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("name")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.name) {
+      setOwnerName(profile.name);
+    }
+  };
+
+  loadOwnerName();
+}, []);
   // Restore form state from navigate state (survives round-trip through TeamMatch)
   const [competitionName, setCompetitionName] = useState(location.state?.competitionName ?? "");
   const [startDate, setStartDate] = useState(location.state?.startDate ?? "");
@@ -261,13 +284,18 @@ export default function NewCompetitionPage() {
                 <div className="flex items-center gap-3">
 
                   <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center font-semibold">
-                    A
+                    {ownerName
+                      .split(" ")
+                      .map((n: string) => n[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
                   </div>
 
                   <div>
 
                     <p className="text-primary">
-                      Aira
+                      {ownerName}
                     </p>
 
                     <p className="text-xs text-gray-500">
