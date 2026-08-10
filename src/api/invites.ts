@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { mockDelay } from './mockClient';
 import type { Invite, WorkspaceInvite } from './types';
+import { MOCK_WORKSPACE } from './workspace';
 
 function isSupabaseReady() {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -78,6 +79,22 @@ export async function sendInvite(
   description?: string,
 ): Promise<void> {
   if (!isSupabaseReady()) {
+    // ── Mock-mode limit checks ──
+    const currentMembers = MOCK_WORKSPACE.team.length;
+    const pendingInvites = mockStore.filter(
+      (i) => i.workspaceId === workspaceId && i.status === 'pending'
+    ).length;
+    const maxMembers = 5;
+
+    if (MOCK_WORKSPACE.team.some((m) => m.id === invitedUserId)) {
+      throw new Error('This person is already a member of the workspace.');
+    }
+    if (currentMembers + pendingInvites >= maxMembers) {
+      throw new Error(
+        `Team is full. Limit: ${maxMembers} (${currentMembers} members + ${pendingInvites} pending invites).`
+      );
+    }
+
     const mockInvite: Invite = {
       id: `inv-${Date.now()}`,
       workspaceId,
@@ -92,10 +109,52 @@ export async function sendInvite(
     return;
   }
 
+  // ── Real Supabase path ──
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated — please log in first.');
+
+  // 1. Duplicate member check
+  const { data: existingMember } = await supabase
+    .from('workspace_members')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .eq('profile_id', invitedUserId)
+    .maybeSingle();
+  if (existingMember) throw new Error('This person is already a member of the workspace.');
+
+  // 2. Get max from competition
+  const { data: wsData, error: wsError } = await supabase
+    .from('workspaces')
+    .select('competitions ( team_size )')
+    .eq('id', workspaceId)
+    .single();
+  if (wsError || !wsData) throw new Error(wsError?.message ?? 'Workspace not found.');
+  const teamSize = (wsData.competitions as any)?.team_size;
+  const maxMembers = teamSize ? parseInt(teamSize, 10) : 4;
+
+  // 3. Current member count
+  const { count: memberCount, error: mcErr } = await supabase
+    .from('workspace_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId);
+  if (mcErr) throw new Error(mcErr.message);
+
+  // 4. Pending invite count
+  const { count: pendingCount, error: pcErr } = await supabase
+    .from('invites')
+    .select('*', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId)
+    .eq('status', 'pending');
+  if (pcErr) throw new Error(pcErr.message);
+
+  // 5. Limit check
+  if ((memberCount ?? 0) + (pendingCount ?? 0) >= maxMembers) {
+    throw new Error(
+      `Team is full. Limit: ${maxMembers} (${memberCount ?? 0} members + ${pendingCount ?? 0} pending invites).`
+    );
+  }
 
   const { error } = await supabase.from('invites').insert({
     workspace_id: workspaceId,
@@ -121,7 +180,17 @@ export async function sendInvite(
  */
 export async function acceptInvite(id: string): Promise<void> {
   if (!isSupabaseReady()) {
+    const invite = mockStore.find((i) => i.id === id);
     mockStore = mockStore.map((i) => (i.id === id ? { ...i, status: 'accepted' } : i));
+    // Add user to mock workspace team
+    if (invite) {
+      MOCK_WORKSPACE.team.push({
+        id: `m-joined-${Date.now()}`,
+        name: invite.invitedByName === 'You' ? 'New Teammate' : invite.invitedByName,
+        role: 'Developer',
+        progress: 0,
+      });
+    }
     await mockDelay(null);
     return;
   }

@@ -7,6 +7,8 @@ import SpotlightCard from '../components/reactbits/SpotlightCard';
 import BlackHoleCountdown from '../components/deadline/BlackHoleCountdown';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { getWorkspace, deleteWorkspace, toggleTaskComplete } from '../api/workspace';
+import { getWorkspaceInvites, cancelInvite } from '../api/invites';
+import { supabase } from '../lib/supabaseClient';
 import type { KanbanColumn } from '../api/types';
 import { createArchive } from '../api/archive';
 import AskAIWidget from '../components/workspace/AskAIWidget';
@@ -44,6 +46,63 @@ const WorkspacePage = () => {
   const [memberSkills,setMemberSkills]=useState<Record<string,string>>({})
   const { data: ws, loading, error, refresh} =
   useAsyncData(() => getWorkspace(workspaceId!), [workspaceId]);
+
+  // Fetch pending invites for the Team Dashboard display
+  const { data: workspaceInvites, loading: loadingInvites, refresh: refreshInvites } = useAsyncData(
+    () => getWorkspaceInvites(workspaceId!),
+    [workspaceId]
+  );
+  const pendingInvites = (workspaceInvites ?? []).filter((i) => i.status === 'pending');
+
+  // Fetch active member profile IDs to prevent duplicate invites
+  const { data: membersRaw } = useAsyncData(
+    async () => {
+      const { data, error } = await supabase
+        .from('workspace_members')
+        .select('profile_id')
+        .eq('workspace_id', workspaceId!);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as { profile_id: string | null }[];
+    },
+    [workspaceId]
+  );
+
+  // Compute already member or invited list
+  const alreadyInvitedIds = useMemo(() => {
+    const isSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes('placeholder'));
+    const activeMemberProfileIds = isSupabase
+      ? (membersRaw ?? []).map((m) => m.profile_id).filter(Boolean) as string[]
+      : (ws?.team ?? []).map((m) => m.id);
+    const pendingIds = (workspaceInvites ?? []).map((i) => i.userId).filter(Boolean);
+    return [...activeMemberProfileIds, ...pendingIds];
+  }, [ws, membersRaw, workspaceInvites]);
+
+
+
+  // Fetch current user's membership role to determine if they are the owner
+  const { data: userRole } = useAsyncData(
+    async () => {
+      const isSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes('placeholder'));
+      if (!isSupabase) return 'Owner';
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('workspace_id', workspaceId!)
+        .eq('profile_id', user.id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.role ?? null;
+    },
+    [workspaceId]
+  );
+
+  const isOwner = useMemo(() => {
+    const isSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes('placeholder'));
+    if (!isSupabase) return true;
+    return userRole === 'Owner';
+  }, [userRole]);
   
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
@@ -305,6 +364,11 @@ useEffect(() => {
                 competitionName={ws.competitionName}
                 currentMembersCount={ws.team.length}
                 team={ws.team}
+                isOwner={isOwner}
+                invites={workspaceInvites ?? []}
+                loadingInvites={loadingInvites}
+                refreshInvites={refreshInvites}
+                alreadyInvitedIds={alreadyInvitedIds}
               />
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -502,18 +566,45 @@ useEffect(() => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div>
                   <h2 className="text-primary text-lg mb-6">Team Dashboard</h2>
-                <div className="space-y-5">
-                  {ws.team.map((member) => {
-                    const hasTasks = memberProgress.has(member.id);
-                    const value = hasTasks ? memberProgress.get(member.id)! : member.progress;
-                    const sub = hasTasks
-                      ? `${member.role} · ${value}% of assigned tasks`
-                      : `${member.role} · No tasks assigned`;
-                    return (
-                      <ProgressBar key={member.id} label={member.name} sub={sub} value={value} />
-                    );
-                  })}
-                </div>
+                  <div className="space-y-5">
+                    {/* Active members */}
+                    {ws.team.map((member) => {
+                      const hasTasks = memberProgress.has(member.id);
+                      const value = hasTasks ? memberProgress.get(member.id)! : member.progress;
+                      const sub = hasTasks
+                        ? `${member.role} · ${value}% of assigned tasks`
+                        : `${member.role} · No tasks assigned`;
+                      return (
+                        <ProgressBar key={member.id} label={member.name} sub={sub} value={value} />
+                      );
+                    })}
+
+                    {/* Pending invites integrated directly into the list */}
+                    {pendingInvites.map((invite) => (
+                      <div key={invite.id}>
+                        <div className="flex items-baseline justify-between mb-1.5">
+                          <span className="text-primary text-sm">{invite.name}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-yellow-400 text-xs">Invite pending</span>
+                            {isOwner && (
+                              <button
+                                onClick={async () => {
+                                  await cancelInvite(invite.id);
+                                  refreshInvites();
+                                }}
+                                className="text-[11px] text-red-400 hover:text-red-300 border border-red-400/20 rounded-lg px-2 py-0.5 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                          <div className="h-full rounded-full bg-yellow-500/25 w-0 animate-pulse" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
               </div>
 
               <div>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, UserPlus, Clock, Loader2, X, CheckCircle2 } from 'lucide-react';
 import { useAsyncData } from '../../hooks/useAsyncData';
-import { getWorkspaceInvites, cancelInvite } from '../../api/invites';
+import { cancelInvite } from '../../api/invites';
 import { getWorkspaceMaxMembers } from '../../api/workspace';
 import type { WorkspaceInvite } from '../../api/types';
 
@@ -11,6 +11,11 @@ interface Props {
   competitionName: string;
   currentMembersCount: number;
   team: { id: string; name: string; role: string }[];
+  isOwner?: boolean;
+  invites: WorkspaceInvite[];
+  loadingInvites: boolean;
+  refreshInvites: () => void;
+  alreadyInvitedIds: string[];
 }
 
 const initials = (name: string) =>
@@ -21,12 +26,18 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-const InvitesSection = ({ workspaceId, competitionName, currentMembersCount, team }: Props) => {
+const InvitesSection = ({
+  workspaceId,
+  competitionName,
+  currentMembersCount,
+  team,
+  isOwner = false,
+  invites,
+  loadingInvites,
+  refreshInvites,
+  alreadyInvitedIds,
+}: Props) => {
   const navigate = useNavigate();
-  const { data: invites, loading, error, refresh } = useAsyncData(
-    () => getWorkspaceInvites(workspaceId),
-    [workspaceId]
-  );
   const { data: maxMembers } = useAsyncData(
     () => getWorkspaceMaxMembers(workspaceId),
     [workspaceId]
@@ -35,7 +46,7 @@ const InvitesSection = ({ workspaceId, competitionName, currentMembersCount, tea
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  const pending = (invites ?? []).filter((i) => i.status === 'pending');
+  const pending = invites.filter((i) => i.status === 'pending');
   const max = maxMembers ?? 4;
   const remainingSlots = Math.max(0, max - currentMembersCount - pending.length);
   const canAddMore = remainingSlots > 0;
@@ -45,7 +56,7 @@ const InvitesSection = ({ workspaceId, competitionName, currentMembersCount, tea
     setCancelError(null);
     try {
       await cancelInvite(invite.id);
-      await refresh();
+      refreshInvites();
     } catch (e) {
       setCancelError((e as Error).message);
     } finally {
@@ -62,7 +73,8 @@ const InvitesSection = ({ workspaceId, competitionName, currentMembersCount, tea
         maxMembers: max,
         currentMembersCount,
         remainingSlots,
-        alreadyInvitedIds: (invites ?? []).map((i) => i.userId),
+        pendingInvitesCount: pending.length,
+        alreadyInvitedIds,
       },
     });
   };
@@ -79,10 +91,8 @@ const InvitesSection = ({ workspaceId, competitionName, currentMembersCount, tea
         </span>
       </div>
 
-      {loading ? (
+      {loadingInvites ? (
         <div className="h-14 bg-white/5 rounded-2xl animate-pulse" />
-      ) : error ? (
-        <p className="text-red-400 text-xs">{error.message}</p>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           {team.map((member) => (
@@ -117,19 +127,21 @@ const InvitesSection = ({ workspaceId, competitionName, currentMembersCount, tea
                 <span className="text-[11px] text-yellow-400 flex items-center gap-1">
                   <Clock size={10} /> pending
                 </span>
-                <button
-                  onClick={() => handleCancel(invite)}
-                  disabled={cancellingId === invite.id}
-                  className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 shrink-0"
-                  title="Remove invite"
-                >
-                  {cancellingId === invite.id ? (
-                    <Loader2 size={11} className="animate-spin" />
-                  ) : (
-                    <X size={12} />
-                  )}
-                  Cancel
-                </button>
+                {isOwner && (
+                  <button
+                    onClick={() => handleCancel(invite)}
+                    disabled={cancellingId === invite.id}
+                    className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 shrink-0"
+                    title="Cancel invite"
+                  >
+                    {cancellingId === invite.id ? (
+                      <Loader2 size={11} className="animate-spin" />
+                    ) : (
+                      <X size={12} />
+                    )}
+                    Cancel
+                  </button>
+                )}
               </div>
             </div>
           ))}

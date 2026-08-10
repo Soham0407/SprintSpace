@@ -9,7 +9,8 @@ function isSupabaseReady() {
 }
 
 // ─── MOCK data ────────────────────────────────────────────────────────────────
-const MOCK_WORKSPACE: WorkspaceData = {
+export const MOCK_WORKSPACE: WorkspaceData = {
+  createdBy: 'mock-user-owner-id',
   competitionId: '',
   competitionName: 'Web Wonders 2026',
   healthScore: 87,
@@ -174,7 +175,18 @@ export async function getWorkspace(workspaceId?: string): Promise<WorkspaceData>
   });
 
   if (error) throw new Error(error.message);
-  return data as WorkspaceData;
+
+  const wsData = data as WorkspaceData;
+  // Ensure createdBy is populated (may not be in the RPC response)
+  if (!wsData.createdBy) {
+    const { data: rawWs } = await supabase
+      .from('workspaces')
+      .select('created_by')
+      .eq('id', resolvedId)
+      .maybeSingle();
+    if (rawWs) wsData.createdBy = rawWs.created_by;
+  }
+  return wsData;
 }
 
 export async function deleteWorkspace(workspaceId: string, competitionId?: string): Promise<void> {

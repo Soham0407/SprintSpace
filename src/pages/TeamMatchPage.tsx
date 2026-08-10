@@ -31,12 +31,14 @@ const TeamMatchPage = () => {
   const fromWorkspace = Boolean(location.state?.fromWorkspace);
   const alreadyInvitedIds: string[] = location.state?.alreadyInvitedIds ?? [];
   const currentMembersCount = location.state?.currentMembersCount ?? 1;
+  const pendingInvitesCount: number = location.state?.pendingInvitesCount ?? 0;
   const remainingSlots = location.state?.remainingSlots ?? Math.max(0, formState.maxMembers - 1);
 
   const [invited, setInvited] = useState<string[]>(
     fromWorkspace ? alreadyInvitedIds : alreadyInvited.map((m: any) => m.id)
   );
   const [sending, setSending] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // In workspace mode only newly picked people count against the open slots
   const newSelected = invited.filter((id) => !alreadyInvitedIds.includes(id));
@@ -57,19 +59,30 @@ const TeamMatchPage = () => {
   const handleSendInvites = async () => {
     if (!workspaceId) return;
     setSending(true);
+    setErrorMsg(null);
     const selected = (candidates ?? []).filter((c) => newSelected.includes(c.id));
-    const results = await Promise.allSettled(
-      selected.map((m) =>
-        sendInvite(workspaceId, m.id, formState.competitionName || "Sprint", formState.description || undefined)
-      )
-    );
-    results.forEach((r, i) => {
-      if (r.status === 'rejected') {
-        console.error(`[sendInvite] member ${selected[i]?.id} failed:`, r.reason);
+    
+    let failedNames: string[] = [];
+    let lastError = '';
+
+    // Sequential to prevent race conditions on size-limit checks
+    for (const m of selected) {
+      try {
+        await sendInvite(workspaceId, m.id, formState.competitionName || "Sprint", formState.description || undefined);
+      } catch (err) {
+        console.error(`[sendInvite] member ${m.id} failed:`, err);
+        failedNames.push(m.name);
+        lastError = (err as Error).message;
       }
-    });
+    }
+
     setSending(false);
-    navigate(`/workspace/${workspaceId}`);
+    
+    if (failedNames.length > 0) {
+      setErrorMsg(`Failed to invite ${failedNames.join(', ')}: ${lastError}`);
+    } else {
+      navigate(`/workspace/${workspaceId}`);
+    }
   };
 
   return (
@@ -94,6 +107,12 @@ const TeamMatchPage = () => {
           <Users2 size={28} className="text-gray-600 mx-auto mb-4" />
           <p className="text-primary/70 mb-1">No one's posted a profile yet.</p>
           <p className="text-gray-500 text-sm">Be the first — post your project above.</p>
+        </div>
+      )}
+
+      {!loading && errorMsg && (
+        <div className="mb-6 p-4 rounded-xl border border-red-500/20 bg-red-500/10 text-red-400 text-sm">
+          {errorMsg}
         </div>
       )}
 
@@ -126,7 +145,9 @@ const TeamMatchPage = () => {
 
           <div className="text-center">
             <p className="text-3xl text-accent font-semibold">
-              {fromWorkspace ? currentMembersCount + newSelected.length : invited.length + 1}
+              {fromWorkspace
+                ? currentMembersCount + pendingInvitesCount + newSelected.length
+                : invited.length + 1}
             </p>
             <p className="text-xs text-gray-500">
               Current Members
@@ -184,11 +205,17 @@ const TeamMatchPage = () => {
               <div className="flex items-center justify-between">
                 <span className="text-accent text-sm font-medium">{c.matchScore}% match</span>
                 <button
-                  disabled={invited.includes(c.id) || !canInviteMore}
-                  onClick={() => setInvited([...invited, c.id])}
+                  disabled={alreadyInvitedIds.includes(c.id) || (!invited.includes(c.id) && !canInviteMore)}
+                  onClick={() => {
+                    if (invited.includes(c.id)) {
+                      setInvited(invited.filter((id) => id !== c.id));
+                    } else {
+                      setInvited([...invited, c.id]);
+                    }
+                  }}
                   className="flex items-center gap-2 text-xs bg-primary text-ink rounded-full px-4 py-2 disabled:opacity-40"
                 >
-                  {invited.includes(c.id) ? "Invited ✓" : "Invite"}
+                  {alreadyInvitedIds.includes(c.id) ? "Invited ✓" : invited.includes(c.id) ? "Selected ✓" : "Invite"}
                 </button>
               </div>
             </SpotlightCard>

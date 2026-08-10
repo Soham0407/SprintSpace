@@ -422,19 +422,15 @@ onChange={(e)=>setDescription(e.target.value)}
   maxMembers,
 });
 
-// Send real invites to each invited member
+// Send invites sequentially (prevents race conditions on size-limit checks)
 if (!soloMode && invitedMembers.length > 0) {
-  const results = await Promise.allSettled(
-    invitedMembers.map((member: any) =>
-      sendInvite(workspaceId, member.id, competitionName, description || undefined)
-    )
-  );
-  // Log any invite failures (non-blocking — workspace was created)
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') {
-      console.error(`[sendInvite] member ${invitedMembers[i]?.id} failed:`, r.reason);
+  for (const member of invitedMembers) {
+    try {
+      await sendInvite(workspaceId, member.id, competitionName, description || undefined);
+    } catch (err) {
+      console.error(`[sendInvite] member ${member.id} failed:`, err);
     }
-  });
+  }
 }
 
 navigate(`/workspace/${workspaceId}`);
