@@ -71,7 +71,7 @@ const SprintRoomPage = () => {
 };
 
   return (
-    <PageShell>
+    <PageShell eyebrow="SPRINTROOM" title="SprintRoom">
       {/* Online status line */}
       <div className="text-sm text-gray-500 mb-4">
         {members.length} Members Online

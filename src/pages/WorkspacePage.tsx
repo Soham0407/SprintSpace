@@ -10,6 +10,7 @@ import { getWorkspace, deleteWorkspace, toggleTaskComplete } from '../api/worksp
 import type { KanbanColumn } from '../api/types';
 import { createArchive } from '../api/archive';
 import AskAIWidget from '../components/workspace/AskAIWidget';
+import InvitesSection from '../components/workspace/InvitesSection';
 import { useParams, useNavigate } from "react-router-dom";
 const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value: number }) => {
   const ref = useRef(null);
@@ -36,9 +37,6 @@ const ProgressBar = ({ label, sub, value }: { label: string; sub: string; value:
 const WorkspacePage = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
-  const plannerStorageKey = workspaceId
-    ? `planner_state_${workspaceId}`
-    : "";
   const [memberSkills,setMemberSkills]=useState<Record<string,string>>({})
   const { data: ws, loading, error, refresh} =
   useAsyncData(() => getWorkspace(workspaceId!), [workspaceId]);
@@ -325,9 +323,16 @@ useEffect(() => {
           </section>
 
           <section className="px-4 md:px-6 py-10">
-            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10">
-              <div>
-                <h2 className="text-primary text-lg mb-6">Team Dashboard</h2>
+            <div className="max-w-6xl mx-auto">
+              <InvitesSection
+                workspaceId={workspaceId!}
+                competitionName={ws.competitionName}
+                currentMembersCount={ws.team.length}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div>
+                  <h2 className="text-primary text-lg mb-6">Team Dashboard</h2>
                 <div className="space-y-5">
                   {ws.team.map((member) => {
                     const hasTasks = memberProgress.has(member.id);
@@ -362,6 +367,7 @@ useEffect(() => {
                     </div>
                   ))}
                 </div>
+              </div>
               </div>
             </div>
           </section>

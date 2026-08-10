@@ -52,6 +52,37 @@ export interface Invite {
   createdAt: string;
 }
 
+export interface WorkspaceInvite {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  name: string;
+  status: 'pending' | 'accepted';
+  createdAt: string;
+}
+
+export interface SprintRoomMessage {
+  id: string;
+  workspaceId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface SprintRoomPin {
+  id: string;
+  workspaceId: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface SprintRoomMember {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export interface ResourceItem {
   id: string;
   title: string;

@@ -210,6 +210,25 @@ export async function toggleTaskComplete(
   if (error) throw new Error(error.message);
 }
 
+/** Reads the team size (max members) of a workspace from its linked competition. */
+export async function getWorkspaceMaxMembers(workspaceId: string): Promise<number> {
+  if (!isSupabaseReady()) {
+    return mockDelay(4);
+  }
+
+  const { data, error } = await supabase
+    .from('workspaces')
+    .select('competitions ( team_size )')
+    .eq('id', workspaceId)
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  const teamSize = (data?.competitions as { team_size?: string | null } | null)?.team_size;
+  const parsed = teamSize ? Number.parseInt(String(teamSize), 10) : NaN;
+  return Number.isFinite(parsed) ? parsed : 4;
+}
+
 export interface WorkspaceGithub {
   githubRepo: string | null;
   githubBranch: string;

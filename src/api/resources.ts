@@ -10,8 +10,6 @@ function isSupabaseReady() {
 // ─── MOCK data ────────────────────────────────────────────────────────────────
 const MOCK_RESOURCE_SECTIONS: ResourceSection[] = [];
 
-const MOCK_RESOURCES: Resource[] = [];
-
 let mockStore: Resource[] = [];
 
 function mapRow(row: Record<string, any>): Resource {
