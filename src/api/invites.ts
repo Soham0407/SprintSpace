@@ -154,7 +154,7 @@ export async function getWorkspaceInvites(workspaceId: string): Promise<Workspac
   if (!isSupabaseReady()) {
     return mockDelay(
       mockStore
-        .filter((i) => i.workspaceId === workspaceId && i.status !== 'declined')
+        .filter((i) => i.status !== 'declined')
         .map((i) => ({
           id: i.id,
           workspaceId: i.workspaceId,
@@ -185,7 +185,22 @@ export async function getWorkspaceInvites(workspaceId: string): Promise<Workspac
 
   const nameMap: Record<string, string> = {};
   for (const p of profiles ?? []) {
-    nameMap[p.id] = p.name;
+    if (p.name) nameMap[p.id] = p.name;
+  }
+
+  // Fallback: direct profiles reads are often restricted by RLS. Resolve any
+  // remaining names through the candidates table (same join TeamMatch uses).
+  const missingIds = userIds.filter((id) => !nameMap[id]);
+  if (missingIds.length > 0) {
+    const { data: cands } = await supabase
+      .from('candidates')
+      .select('id, profiles ( name )')
+      .in('id', missingIds);
+
+    for (const c of cands ?? []) {
+      const profile = c.profiles as unknown as { name: string | null } | null;
+      if (profile?.name) nameMap[c.id] = profile.name;
+    }
   }
 
   return rows.map((row) => ({
