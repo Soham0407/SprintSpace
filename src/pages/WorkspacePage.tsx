@@ -125,8 +125,11 @@ useEffect(() => {
     `planner_state_${workspaceId}`
   );
 
-  if (savedPlannerState) {
-    // State exists; Ask AI will restore it when opened.
+  const plannerIntroSeen = localStorage.getItem(
+    `planner_intro_seen_${workspaceId}`
+  );
+
+  if (savedPlannerState || plannerIntroSeen) {
     return;
   }
 
@@ -834,6 +837,7 @@ aiInstructions={aiInstructions}
 setAiInstructions={setAiInstructions}
 
  team={ws?.team ?? []}
+ pendingInvites={pendingInvites}
   deadline={ws?.deadline ?? ""}
   competitionName={ws?.competitionName ?? ""}
 
