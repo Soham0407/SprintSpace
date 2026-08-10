@@ -50,3 +50,29 @@ export async function generateRoadmap(input: PlannerRequestInput): Promise<Plann
 
   return res.json();
 }
+export interface RoadmapDocInput {
+  competition: string;
+  projectIdea: string;
+  deadline: string;
+  phases: PlannerPhase[];
+}
+
+export async function generateRoadmapDoc(input: RoadmapDocInput): Promise<{ content: string }> {
+  const res = await fetch(`${BASE_URL}/ai/roadmap`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      competition: input.competition,
+      project_idea: input.projectIdea,
+      deadline: input.deadline,
+      phases: input.phases,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? `Roadmap extraction failed (${res.status})`);
+  }
+
+  return res.json();
+}

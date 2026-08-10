@@ -25,3 +25,12 @@ class PlannerPhase(BaseModel):
 
 class PlannerResponse(BaseModel):
     phases: List[PlannerPhase]
+
+class RoadmapRequest(BaseModel):
+    competition: str
+    project_idea: str
+    deadline: str
+    phases: List[PlannerPhase]   # the FINAL edited plan, not the original AI output
+
+class RoadmapResponse(BaseModel):
+    content: str   # markdown document

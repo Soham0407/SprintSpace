@@ -10,8 +10,10 @@ import {
   Loader2,
   RotateCcw,
 } from "lucide-react";
-import { generateRoadmap, type PlannerResponse } from "../../api/planner";
+import { generateRoadmap, generateRoadmapDoc, type PlannerResponse } from "../../api/planner";
 import { saveRoadmap } from "../../api/workspace";
+import { createResource, uploadResourceFile } from "../../api/resources";
+import { FileText } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -163,6 +165,45 @@ export default function AskAIWidget({
       setIsGenerating(false);
     }
   };
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractDone, setExtractDone] = useState(false);
+
+  const handleExtractRoadmap = async () => {
+    if (!roadmap) return;
+    setIsExtracting(true);
+    setExtractError(null);
+    setExtractDone(false);
+    try {
+      const { content } = await generateRoadmapDoc({
+        competition: competitionName,
+        projectIdea,
+        deadline,
+        phases: roadmap.phases,
+      });
+
+      const file = new File([content], `${competitionName || "Project"} Roadmap.md`, {
+        type: "text/markdown",
+      });
+      const url = await uploadResourceFile(file);
+
+      await createResource({
+        workspaceId,
+        title: `${competitionName || "Project"} Roadmap`,
+        description: "AI-generated project roadmap document.",
+        url,
+        category: "Roadmap",
+        tags: ["roadmap", "ai-generated"],
+      });
+
+      setExtractDone(true);
+    } catch (e) {
+      setExtractError((e as Error).message);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   const handleAcceptRoadmap = async () => {
 
   if (!roadmap) return;
@@ -980,6 +1021,12 @@ Regenerate
 
 </div>
 
+{extractError && (
+  <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3">
+    {extractError}
+  </p>
+)}
+
 <div className="flex justify-end gap-4 pt-8">
 
   <button
@@ -987,6 +1034,19 @@ Regenerate
     className="px-5 py-3 rounded-xl border border-white/10"
   >
     Regenerate
+  </button>
+
+  <button
+    disabled={isExtracting}
+    onClick={handleExtractRoadmap}
+    className="px-5 py-3 rounded-xl border border-white/10 flex items-center gap-2 disabled:opacity-50"
+  >
+    {isExtracting ? (
+      <Loader2 size={16} className="animate-spin" />
+    ) : (
+      <FileText size={16} />
+    )}
+    {extractDone ? "Roadmap Saved ✓" : isExtracting ? "Extracting..." : "Extract Roadmap"}
   </button>
 
   <button
